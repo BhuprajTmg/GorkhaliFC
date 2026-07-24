@@ -147,6 +147,13 @@ class ContactMessage(models.Model):
         return f"{self.name} <{self.email}>"
 
 
+# Fixed squad size for the tournament registration roster — the form shows
+# exactly this many Name / Jersey Number slots (no "add player" button).
+# Change this single constant to resize the roster everywhere (form, admin,
+# Word/PDF exports) at once.
+ROSTER_SIZE = 15
+
+
 class TeamRegistration(models.Model):
     """A team signing up to play in a tournament the club is hosting/running.
     Submitted via the public "Register" section of the site; reviewed and
@@ -176,7 +183,11 @@ class TeamRegistration(models.Model):
     manager_name = models.CharField(max_length=120, help_text="Team manager or coach's full name.")
     phone = models.CharField(max_length=30)
     email = models.EmailField()
-    player_count = models.PositiveSmallIntegerField(help_text="Estimated number of players in the squad.")
+    player_count = models.PositiveSmallIntegerField(
+        default=0,
+        editable=False,
+        help_text="Automatically set to the number of named players in the roster below.",
+    )
     home_city = models.CharField(max_length=120, blank=True)
     experience = models.TextField(
         blank=True, help_text="Previous tournament experience, if any (optional)."
@@ -194,3 +205,30 @@ class TeamRegistration(models.Model):
 
     def __str__(self):
         return f"{self.team_name} — {self.tournament_name}"
+
+    def refresh_player_count(self):
+        """Recomputes player_count from named roster rows and saves it."""
+        count = self.players.exclude(name="").count()
+        if count != self.player_count:
+            self.player_count = count
+            self.save(update_fields=["player_count"])
+        return count
+
+
+class RegisteredPlayer(models.Model):
+    """One row of a team's fixed-size roster (see ROSTER_SIZE), submitted
+    alongside a TeamRegistration so the club can track who's actually
+    playing, not just a headcount guess.
+    """
+
+    registration = models.ForeignKey(
+        TeamRegistration, related_name="players", on_delete=models.CASCADE
+    )
+    name = models.CharField(max_length=100, blank=True)
+    jersey_number = models.PositiveSmallIntegerField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.name or "(empty slot)"

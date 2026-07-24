@@ -69,14 +69,29 @@
         </div>
     </header>
 
-    <main>
-        {% if messages %}
+    {% if messages %}
+    <div class="modal-overlay" id="site-modal">
+        <div class="modal-box">
+            <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+            {% for message in messages %}
+            <div class="modal-message modal-message--{{ message.tags|default:'info' }}">
+                <span class="modal-icon">{% if message.tags == 'success' %}&#9989;{% else %}&#9888;&#65039;{% endif %}</span>
+                <p>{{ message }}</p>
+            </div>
+            {% endfor %}
+            <button type="button" class="btn btn-primary modal-ok" id="modal-ok">OK</button>
+        </div>
+    </div>
+    <noscript>
         <div class="container">
             {% for message in messages %}
-            <p class="flash-message">{{ message }}</p>
+            <p class="flash-message flash-message--{{ message.tags|default:'info' }}">{{ message }}</p>
             {% endfor %}
         </div>
-        {% endif %}
+    </noscript>
+    {% endif %}
+
+    <main>
         {% block content %}{% endblock %}
     </main>
 

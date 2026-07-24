@@ -41,14 +41,17 @@
                 <label>
                     Your Name
                     {{ form.name }}
+                    {{ form.name.errors }}
                 </label>
                 <label>
                     Email Address
                     {{ form.email }}
+                    {{ form.email.errors }}
                 </label>
                 <label>
                     Message
                     {{ form.message }}
+                    {{ form.message.errors }}
                 </label>
                 <button type="submit" class="btn btn-primary">Send Message</button>
             </form>

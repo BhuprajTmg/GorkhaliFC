@@ -13,6 +13,7 @@
                 </p>
                 <ul class="register-points">
                     <li>Open to any registered or casual team — just bring a squad.</li>
+                    <li>List your players below so we can track who's actually playing.</li>
                     <li>We'll email you a confirmation once your registration is reviewed.</li>
                     <li>Questions before you register? Reach out via the Contact section.</li>
                 </ul>
@@ -26,26 +27,31 @@
                     <label>
                         Tournament
                         {{ registration_form.tournament_name }}
+                        {{ registration_form.tournament_name.errors }}
                     </label>
                     <label>
                         Division
                         {{ registration_form.division }}
+                        {{ registration_form.division.errors }}
                     </label>
                 </div>
 
                 <label>
                     Team Name
                     {{ registration_form.team_name }}
+                    {{ registration_form.team_name.errors }}
                 </label>
 
                 <div class="form-row">
                     <label>
                         Manager / Coach Name
                         {{ registration_form.manager_name }}
+                        {{ registration_form.manager_name.errors }}
                     </label>
                     <label>
-                        Estimated Players
-                        {{ registration_form.player_count }}
+                        Home City / Suburb
+                        {{ registration_form.home_city }}
+                        {{ registration_form.home_city.errors }}
                     </label>
                 </div>
 
@@ -53,17 +59,14 @@
                     <label>
                         Phone
                         {{ registration_form.phone }}
+                        {{ registration_form.phone.errors }}
                     </label>
                     <label>
                         Email
                         {{ registration_form.email }}
+                        {{ registration_form.email.errors }}
                     </label>
                 </div>
-
-                <label>
-                    Home City / Suburb
-                    {{ registration_form.home_city }}
-                </label>
 
                 <label>
                     Previous Tournament Experience
@@ -74,6 +77,32 @@
                     Notes
                     {{ registration_form.notes }}
                 </label>
+
+                <div class="roster-section">
+                    {{ roster_formset.management_form }}
+                    <div class="roster-heading">
+                        <h4>Player Roster</h4>
+                        <p class="roster-hint">{{ roster_formset|length }} fixed slots — leave any unused ones blank.</p>
+                    </div>
+                    {% if roster_formset.non_form_errors %}
+                        <p class="form-error">{{ roster_formset.non_form_errors.0 }}</p>
+                    {% endif %}
+                    <div class="roster-grid">
+                        <div class="roster-row roster-row--header">
+                            <span>#</span>
+                            <span>Player Name</span>
+                            <span>Jersey #</span>
+                        </div>
+                        {% for player_form in roster_formset %}
+                        <div class="roster-row">
+                            <span class="roster-index">{{ forloop.counter }}</span>
+                            {{ player_form.name }}
+                            {{ player_form.jersey_number }}
+                            {{ player_form.id }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
 
                 <label class="checkbox-label">
                     {{ registration_form.agreed_to_rules }}

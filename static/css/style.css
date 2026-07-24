@@ -1104,6 +1104,84 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   margin: -8px 0 0;
 }
 
+.contact-form .errorlist {
+  list-style: none;
+  margin: -4px 0 0;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.contact-form input.is-invalid,
+.contact-form textarea.is-invalid,
+.contact-form select.is-invalid {
+  border-color: var(--color-primary);
+}
+
+/* ---------- Roster (fixed-size player list) ---------- */
+
+.roster-section {
+  margin-top: 8px;
+}
+
+.roster-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.roster-heading h4 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-ink-soft);
+  margin: 0;
+}
+
+.roster-hint {
+  font-size: 0.75rem;
+  color: var(--color-ink-soft);
+  margin: 0;
+}
+
+.roster-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.roster-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.roster-row--header {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-ink-soft);
+  font-weight: 700;
+  padding: 0 0 2px;
+}
+
+.roster-index {
+  color: var(--color-ink-soft);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.roster-row input {
+  padding: 8px 10px !important;
+  font-size: 0.85rem !important;
+}
+
 .contact-form .btn {
   align-self: flex-start;
   border: none;
@@ -1125,6 +1203,111 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   padding: 14px 18px;
   margin-top: 24px;
   font-weight: 600;
+}
+
+.flash-message--error {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ---------- Popup / modal ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 8, 15, 0.7);
+  animation: modal-fade-in 0.18s ease;
+}
+
+.modal-overlay.is-closing {
+  animation: modal-fade-out 0.15s ease forwards;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.modal-box {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 32px 28px 24px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  border: none;
+  background: none;
+  color: var(--color-ink-soft);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.modal-close:hover {
+  color: var(--color-ink);
+}
+
+.modal-message {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.modal-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modal-message p {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.modal-message--error p {
+  color: var(--color-ink);
+}
+
+.modal-message--error .modal-icon {
+  filter: none;
+}
+
+.modal-ok {
+  width: 100%;
+  text-align: center;
+  cursor: pointer;
+  border: none;
 }
 
 /* ---------- Footer ---------- */

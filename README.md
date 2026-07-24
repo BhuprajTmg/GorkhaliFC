@@ -22,19 +22,27 @@ with the nav bar linking to in-page sections via anchors
   original per-player HTML files.
 - **Schedule** — upcoming fixtures and past results (home/away tags,
   scores).
-- **Register** — a tournament team registration form (team name, division,
-  manager/coach contact, estimated player count, etc.). Submissions are
-  saved to the database, emailed to the club with a Word (`.docx`)
-  summary attached, and manageable (approve / waitlist / reject) from
-  the admin.
+- **Register** — a tournament team registration form: team name, division,
+  manager/coach contact, plus a **fixed 15-slot player roster** (name +
+  jersey number per row — see `club.models.ROSTER_SIZE` to change the
+  count). The player count is calculated automatically from how many
+  roster rows have a name, not manually typed in. Submissions are saved
+  to the database, emailed to the club with both a Word (`.docx`) and a
+  PDF summary attached (full roster included), and manageable
+  (approve / waitlist / reject) from the admin.
 - **Photos** — gallery with category filters (Matches, Team Photos,
   Training, ...) filtered instantly with JS, no page reload.
 - **Contact** — club contact details, social links, and a working contact
   form. Submitting it emails the club (see "Email setup" below) and saves
   a copy in the admin; it never leaves the page.
+- **Success/error popups** — submitting the Contact or Register form shows
+  a popup confirming success or explaining failure (e.g. a missing
+  required field), on top of inline red error text under whichever
+  field(s) need fixing.
 - **Django admin** — manage everything above (players, fixtures,
-  registrations, gallery images, club info, contact messages) without
-  touching code, at `/admin/` — themed to match the club's brand colors.
+  registrations + their player rosters, gallery images, club info,
+  contact messages) without touching code, at `/admin/` — themed to
+  match the club's brand colors.
 
 ## Project layout
 
@@ -98,8 +106,9 @@ Submitting the Contact form or the tournament Register form always saves
 the message/registration to the database (visible in the admin either
 way), and additionally tries to **email the club** at whatever address is
 set in **Club Info → Email** (falls back to `CONTACT_NOTIFICATION_EMAIL` if
-Club Info has no email set). Registration emails also attach a Word
-(`.docx`) document summarising the team's details.
+Club Info has no email set). Registration emails also attach both a Word
+(`.docx`) and a PDF document summarising the team's details and full
+player roster.
 
 **Without any setup**, that email is just printed to your terminal/console
 window (look for lines starting with `[club.emails] ...`) — nothing
@@ -208,9 +217,11 @@ Everything editable lives in the Django admin (`/admin/`):
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section
   form.
-- **Team Registrations** — teams that signed up via the Register section.
-  Change **Status** (Pending review / Approved / Waitlisted / Rejected) to
-  triage entries; filter by division or tournament name.
+- **Team Registrations** — teams that signed up via the Register section,
+  including their player roster shown inline (jersey number + name) on
+  the registration's detail page. Change **Status** (Pending review /
+  Approved / Waitlisted / Rejected) to triage entries; filter by division
+  or tournament name.
 
 The `seed_demo` command creates a starting squad (Sohan Khadka - GK, Niroj
 Shrestha - DF, Ujjwal Giri - DF, plus a few more with best-guess positions)

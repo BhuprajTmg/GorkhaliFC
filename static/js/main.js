@@ -29,4 +29,34 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
+
+  // Success/error popup shown after submitting the contact or
+  // registration form (rendered server-side from Django messages; this
+  // just wires up the ways to dismiss it).
+  const modal = document.getElementById("site-modal");
+  if (modal) {
+    const closeModal = function () {
+      modal.classList.add("is-closing");
+      window.setTimeout(function () {
+        modal.style.display = "none";
+      }, 150);
+    };
+
+    const closeBtn = document.getElementById("modal-close");
+    const okBtn = document.getElementById("modal-ok");
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (okBtn) okBtn.addEventListener("click", closeModal);
+
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+  }
 });

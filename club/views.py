@@ -3,8 +3,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .emails import send_contact_notification, send_registration_notification
-from .forms import ContactForm, TeamRegistrationForm
-from .models import ClubInfo, GalleryCategory, GalleryImage, Match, Player
+from .forms import ContactForm, RegisteredPlayerFormSet, TeamRegistrationForm
+from .models import ClubInfo, GalleryCategory, GalleryImage, Match, Player, TeamRegistration
 
 
 def home(request):
@@ -19,14 +19,21 @@ def home(request):
     # collide between the two forms).
     contact_form = ContactForm(prefix="contact")
     registration_form = TeamRegistrationForm(prefix="registration")
+    roster_formset = RegisteredPlayerFormSet(instance=TeamRegistration(), prefix="roster")
 
     if request.method == "POST":
         form_name = request.POST.get("form_name")
 
         if form_name == "registration":
             registration_form = TeamRegistrationForm(request.POST, prefix="registration")
-            if registration_form.is_valid():
+            roster_formset = RegisteredPlayerFormSet(
+                request.POST, instance=TeamRegistration(), prefix="roster"
+            )
+            if registration_form.is_valid() and roster_formset.is_valid():
                 registration = registration_form.save()
+                roster_formset.instance = registration
+                roster_formset.save()
+                registration.refresh_player_count()
                 send_registration_notification(registration, club)
                 messages.success(
                     request,
@@ -35,6 +42,11 @@ def home(request):
                     f"be in touch soon.",
                 )
                 return redirect(f"{request.path}#register")
+            messages.error(
+                request,
+                "Your registration couldn't be submitted — please check the "
+                "highlighted fields below and try again.",
+            )
         else:
             contact_form = ContactForm(request.POST, prefix="contact")
             if contact_form.is_valid():
@@ -44,6 +56,11 @@ def home(request):
                     request, "Thanks for reaching out! We'll get back to you soon."
                 )
                 return redirect(f"{request.path}#contact")
+            messages.error(
+                request,
+                "Your message couldn't be sent — please check the highlighted "
+                "fields below and try again.",
+            )
 
     active_players = Player.objects.filter(is_active=True)
     grouped_players = []
@@ -65,6 +82,7 @@ def home(request):
         "images": GalleryImage.objects.all(),
         "form": contact_form,
         "registration_form": registration_form,
+        "roster_formset": roster_formset,
     }
     return render(request, "club/home.html", context)
 

@@ -1,6 +1,8 @@
 from django import forms
+from django.core.exceptions import ValidationError
+from django.forms import BaseInlineFormSet, inlineformset_factory
 
-from .models import ContactMessage, TeamRegistration
+from .models import ContactMessage, RegisteredPlayer, ROSTER_SIZE, TeamRegistration
 
 
 class ContactForm(forms.ModelForm):
@@ -32,7 +34,6 @@ class TeamRegistrationForm(forms.ModelForm):
             "manager_name",
             "phone",
             "email",
-            "player_count",
             "home_city",
             "experience",
             "notes",
@@ -44,7 +45,6 @@ class TeamRegistrationForm(forms.ModelForm):
             "manager_name": forms.TextInput(attrs={"placeholder": "Full name"}),
             "phone": forms.TextInput(attrs={"placeholder": "e.g. 0400 000 000"}),
             "email": forms.EmailInput(attrs={"placeholder": "team@example.com"}),
-            "player_count": forms.NumberInput(attrs={"placeholder": "e.g. 14", "min": 1}),
             "home_city": forms.TextInput(attrs={"placeholder": "e.g. Darwin"}),
             "experience": forms.Textarea(
                 attrs={"placeholder": "Optional — any previous tournaments you've played in", "rows": 3}
@@ -53,3 +53,43 @@ class TeamRegistrationForm(forms.ModelForm):
                 attrs={"placeholder": "Anything else we should know? (optional)", "rows": 3}
             ),
         }
+
+
+class RegisteredPlayerForm(forms.ModelForm):
+    class Meta:
+        model = RegisteredPlayer
+        fields = ["name", "jersey_number"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "Player full name"}),
+            "jersey_number": forms.NumberInput(attrs={"placeholder": "#", "min": 0, "max": 99}),
+        }
+
+
+class BaseRegisteredPlayerFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        named_players = 0
+        for form in self.forms:
+            cleaned = getattr(form, "cleaned_data", None)
+            if cleaned and cleaned.get("name", "").strip():
+                named_players += 1
+        if named_players == 0:
+            raise ValidationError(
+                "Please list at least one player in the roster below."
+            )
+
+
+# Fixed number of roster rows (see club.models.ROSTER_SIZE) — no "add
+# player" button, exactly ROSTER_SIZE Name/Jersey Number slots every time.
+RegisteredPlayerFormSet = inlineformset_factory(
+    TeamRegistration,
+    RegisteredPlayer,
+    form=RegisteredPlayerForm,
+    formset=BaseRegisteredPlayerFormSet,
+    extra=ROSTER_SIZE,
+    max_num=ROSTER_SIZE,
+    validate_max=True,
+    can_delete=False,
+)

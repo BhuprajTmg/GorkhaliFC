@@ -8,6 +8,7 @@ from .models import (
     GalleryImage,
     Match,
     Player,
+    RegisteredPlayer,
     TeamRegistration,
 )
 
@@ -89,6 +90,13 @@ class ContactMessageAdmin(admin.ModelAdmin):
     readonly_fields = ("name", "email", "message", "created_at")
 
 
+class RegisteredPlayerInline(admin.TabularInline):
+    model = RegisteredPlayer
+    extra = 0
+    fields = ("jersey_number", "name")
+    can_delete = True
+
+
 @admin.register(TeamRegistration)
 class TeamRegistrationAdmin(admin.ModelAdmin):
     list_display = (
@@ -104,7 +112,8 @@ class TeamRegistrationAdmin(admin.ModelAdmin):
     list_filter = ("status", "division", "tournament_name")
     search_fields = ("team_name", "manager_name", "email", "tournament_name")
     date_hierarchy = "submitted_at"
-    readonly_fields = ("submitted_at",)
+    readonly_fields = ("submitted_at", "player_count")
+    inlines = [RegisteredPlayerInline]
     fieldsets = (
         ("Tournament", {"fields": ("tournament_name", "division", "status")}),
         ("Team", {"fields": ("team_name", "player_count", "home_city")}),
