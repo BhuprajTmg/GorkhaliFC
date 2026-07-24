@@ -1,7 +1,20 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import ClubInfo, ContactMessage, GalleryCategory, GalleryImage, Match, Player
+from .models import (
+    ClubInfo,
+    ContactMessage,
+    GalleryCategory,
+    GalleryImage,
+    Match,
+    Player,
+    TeamRegistration,
+)
+
+
+admin.site.site_header = "⚽ Gurkhali FC Admin"
+admin.site.site_title = "Gurkhali FC Admin"
+admin.site.index_title = "Club management"
 
 
 @admin.register(ClubInfo)
@@ -74,3 +87,28 @@ class ContactMessageAdmin(admin.ModelAdmin):
     list_editable = ("is_read",)
     list_filter = ("is_read",)
     readonly_fields = ("name", "email", "message", "created_at")
+
+
+@admin.register(TeamRegistration)
+class TeamRegistrationAdmin(admin.ModelAdmin):
+    list_display = (
+        "team_name",
+        "tournament_name",
+        "division",
+        "manager_name",
+        "player_count",
+        "status",
+        "submitted_at",
+    )
+    list_editable = ("status",)
+    list_filter = ("status", "division", "tournament_name")
+    search_fields = ("team_name", "manager_name", "email", "tournament_name")
+    date_hierarchy = "submitted_at"
+    readonly_fields = ("submitted_at",)
+    fieldsets = (
+        ("Tournament", {"fields": ("tournament_name", "division", "status")}),
+        ("Team", {"fields": ("team_name", "player_count", "home_city")}),
+        ("Contact", {"fields": ("manager_name", "phone", "email")}),
+        ("Details", {"fields": ("experience", "notes", "agreed_to_rules")}),
+        ("Meta", {"fields": ("submitted_at",)}),
+    )

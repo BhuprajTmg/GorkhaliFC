@@ -10,34 +10,41 @@ instead of editing raw HTML files.
 
 The site is a **single scrollable page** (like the original static site),
 with the nav bar linking to in-page sections via anchors
-(`/#about`, `/#players`, `/#schedule`, `/#photos`, `/#contact`) instead of
-separate pages:
+(`/#about`, `/#players`, `/#schedule`, `/#register`, `/#photos`,
+`/#contact`) instead of separate pages:
 
 - **Home** — hero banner (club name, motto, CTAs), quick stats.
 - **About** — editable club story, founding year, home ground.
 - **Players** — squad grouped by position (Goalkeepers, Defenders,
-  Midfielders, Forwards). Each player card links out to its own dedicated
-  profile page (photo, jersey number, bio) — the only page that isn't a
-  section of the one-pager, similar to the original per-player HTML files.
+  Midfielders, Forwards), shown as red/blue ID-badge style cards. Each card
+  links out to its own dedicated profile page (photo, jersey number, bio)
+  — the only page that isn't a section of the one-pager, similar to the
+  original per-player HTML files.
 - **Schedule** — upcoming fixtures and past results (home/away tags,
   scores).
+- **Register** — a tournament team registration form (team name, division,
+  manager/coach contact, estimated player count, etc.). Submissions are
+  saved to the database, emailed to the club, and manageable (approve /
+  waitlist / reject) from the admin.
 - **Photos** — gallery with category filters (Matches, Team Photos,
   Training, ...) filtered instantly with JS, no page reload.
 - **Contact** — club contact details, social links, and a working contact
-  form (submits without leaving the page; messages are saved and viewable
-  in the admin).
-- **Django admin** — manage everything above (players, fixtures, gallery
-  images, club info, contact messages) without touching code, at `/admin/`.
+  form. Submitting it emails the club (see "Email setup" below) and saves
+  a copy in the admin; it never leaves the page.
+- **Django admin** — manage everything above (players, fixtures,
+  registrations, gallery images, club info, contact messages) without
+  touching code, at `/admin/` — themed to match the club's brand colors.
 
 ## Project layout
 
 ```
 gurkhali_fc/            Django project settings & root URLs
-club/                   Main app: models, views, urls, forms, admin, management command
+club/                   Main app: models, views, urls, forms, admin, emails.py, management command
 templates/club/         base.html (layout + nav) and home.html (assembles sections)
-templates/club/includes/  One partial per section: _hero, _about, _players, _schedule, _photos, _contact
-static/css/             Site styling (style.css) — includes a commented-out alternate theme
-static/js/               Mobile nav toggle + gallery category filter (main.js, gallery-filter.js)
+templates/club/includes/  One partial per section: _hero, _about, _players, _schedule, _register, _photos, _contact
+templates/admin/        Minimal override to load the custom admin theme CSS
+static/css/             Site styling (style.css) + admin-custom.css — includes a commented-out alternate theme
+static/js/               Mobile nav toggle + theme toggle + gallery filter (main.js, gallery-filter.js)
 media/                  User-uploaded images (players, gallery, logo) - gitignored
 ```
 
@@ -84,6 +91,43 @@ media/                  User-uploaded images (players, gallery, logo) - gitignor
    `http://127.0.0.1:8000/admin/` to manage content (players, fixtures,
    gallery photos, club info).
 
+## Email setup (contact form + registrations)
+
+Submitting the Contact form or the tournament Register form always saves
+the message/registration to the database (visible in the admin either
+way), and additionally tries to **email the club** at whatever address is
+set in **Club Info → Email** (falls back to `CONTACT_NOTIFICATION_EMAIL` if
+Club Info has no email set).
+
+**Without any setup**, that email is just printed to your terminal/console
+— nothing breaks, but no real email is sent. To send real emails:
+
+1. Copy `.env.example` to a new file named `.env` in the project root (same
+   folder as `manage.py`).
+2. If using Gmail: turn on 2-Step Verification on the Google account, then
+   create an **App Password** at
+   [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+   (a normal Gmail password won't work for this).
+3. Fill in `.env`:
+
+   ```
+   EMAIL_HOST_USER=your-email@gmail.com
+   EMAIL_HOST_PASSWORD=your-16-character-app-password
+   ```
+
+4. Restart the server (`python manage.py runserver`). Emails will now
+   actually be sent via Gmail's SMTP server, from that address, to whatever
+   email is set in Club Info.
+
+Other email providers work too — just set `EMAIL_HOST`, `EMAIL_PORT`, and
+`EMAIL_USE_TLS` in `.env` to match (defaults are Gmail's).
+
+**On Cursor Cloud Agents:** add `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` as
+secrets in the Cursor Dashboard (Cloud Agents → Secrets) instead of a
+`.env` file — they'll be injected the same way.
+
+`.env` is git-ignored, so your credentials never get committed.
+
 ## Adding player photos & descriptions
 
 This is the main thing to do once you have the real squad details:
@@ -125,6 +169,9 @@ Everything editable lives in the Django admin (`/admin/`):
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section
   form.
+- **Team Registrations** — teams that signed up via the Register section.
+  Change **Status** (Pending review / Approved / Waitlisted / Rejected) to
+  triage entries; filter by division or tournament name.
 
 The `seed_demo` command creates a starting squad (Sohan Khadka - GK, Niroj
 Shrestha - DF, Ujjwal Giri - DF, plus a few more with best-guess positions)
@@ -154,6 +201,16 @@ navy/gold/crimson brand colors. To try it: comment out the active `:root`
 block and uncomment the alternate one (keep exactly one default `:root`
 block active at a time — the light-theme override can stay as-is either
 way), then refresh the page.
+
+## Admin theme
+
+The Django admin at `/admin/` is re-colored to match the club's brand
+(navy header, gold branding, crimson buttons/links) via
+`static/css/admin-custom.css`, loaded through a small override at
+`templates/admin/base_site.html`. It works with the admin's built-in
+light/dark mode (based on your OS preference) — both are re-themed. To
+change these colors, edit the CSS variables at the top of
+`admin-custom.css`.
 
 ## Notes
 

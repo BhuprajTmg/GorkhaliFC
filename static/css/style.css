@@ -138,6 +138,7 @@ img {
 #about,
 #players,
 #schedule,
+#register,
 #photos,
 #contact {
   scroll-margin-top: 92px;
@@ -575,13 +576,15 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   position: absolute;
   bottom: 10px;
   right: 10px;
-  background: var(--color-ink);
+  /* Fixed (theme-independent) dark navy so the number stays readable on
+     the red photo panel in both the light and dark site themes. */
+  background: #0b2c60;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 999px;
-  border: 2px solid var(--color-bg-alt);
+  border: 2px solid rgba(255, 255, 255, 0.85);
 }
 
 .captain-badge {
@@ -864,6 +867,43 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   font-style: italic;
 }
 
+/* ---------- Tournament registration ---------- */
+
+.register-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.register-info p {
+  margin-bottom: 18px;
+}
+
+.register-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.register-points li {
+  position: relative;
+  padding-left: 24px;
+  color: var(--color-ink-soft);
+  font-size: 0.92rem;
+}
+
+.register-points li::before {
+  content: "⚽";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 0.85rem;
+}
+
 /* ---------- Gallery ---------- */
 
 .filter-bar {
@@ -1012,7 +1052,8 @@ html[data-theme="light"] .theme-toggle .icon-moon {
 }
 
 .contact-form input,
-.contact-form textarea {
+.contact-form textarea,
+.contact-form select {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -1026,9 +1067,41 @@ html[data-theme="light"] .theme-toggle .icon-moon {
 }
 
 .contact-form input:focus,
-.contact-form textarea:focus {
+.contact-form textarea:focus,
+.contact-form select:focus {
   outline: none;
   border-color: var(--color-accent);
+}
+
+.contact-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.contact-form .checkbox-label {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+
+.contact-form .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.form-error {
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  margin: -8px 0 0;
 }
 
 .contact-form .btn {
@@ -1125,7 +1198,12 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   }
 
   .about-grid,
-  .contact-grid {
+  .contact-grid,
+  .register-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-form .form-row {
     grid-template-columns: 1fr;
   }
 

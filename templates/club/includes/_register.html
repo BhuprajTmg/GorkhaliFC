@@ -1,0 +1,90 @@
+<section class="section" id="register">
+    <div class="container">
+        <p class="eyebrow">Join the Competition</p>
+        <h2>Register Your <span class="text-accent">Team</span></h2>
+        <span class="accent-underline"></span>
+
+        <div class="register-grid">
+            <div class="register-info">
+                <p>
+                    Want your team to play in a Gurkhali FC tournament? Fill out the
+                    form and our organisers will confirm your spot and send you the
+                    fixture details, kit colours, and any remaining steps.
+                </p>
+                <ul class="register-points">
+                    <li>Open to any registered or casual team — just bring a squad.</li>
+                    <li>We'll email you a confirmation once your registration is reviewed.</li>
+                    <li>Questions before you register? Reach out via the Contact section.</li>
+                </ul>
+            </div>
+
+            <form class="contact-form register-form" method="post" action="#register">
+                {% csrf_token %}
+                <input type="hidden" name="form_name" value="registration">
+
+                <div class="form-row">
+                    <label>
+                        Tournament
+                        {{ registration_form.tournament_name }}
+                    </label>
+                    <label>
+                        Division
+                        {{ registration_form.division }}
+                    </label>
+                </div>
+
+                <label>
+                    Team Name
+                    {{ registration_form.team_name }}
+                </label>
+
+                <div class="form-row">
+                    <label>
+                        Manager / Coach Name
+                        {{ registration_form.manager_name }}
+                    </label>
+                    <label>
+                        Estimated Players
+                        {{ registration_form.player_count }}
+                    </label>
+                </div>
+
+                <div class="form-row">
+                    <label>
+                        Phone
+                        {{ registration_form.phone }}
+                    </label>
+                    <label>
+                        Email
+                        {{ registration_form.email }}
+                    </label>
+                </div>
+
+                <label>
+                    Home City / Suburb
+                    {{ registration_form.home_city }}
+                </label>
+
+                <label>
+                    Previous Tournament Experience
+                    {{ registration_form.experience }}
+                </label>
+
+                <label>
+                    Notes
+                    {{ registration_form.notes }}
+                </label>
+
+                <label class="checkbox-label">
+                    {{ registration_form.agreed_to_rules }}
+                    <span>{{ registration_form.agreed_to_rules.label }}</span>
+                </label>
+                {% if registration_form.agreed_to_rules.errors %}
+                    <p class="form-error">{{ registration_form.agreed_to_rules.errors.0 }}</p>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary">Submit Registration</button>
+            </form>
+        </div>
+    </div>
+</section>
