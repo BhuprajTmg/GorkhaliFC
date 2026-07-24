@@ -132,14 +132,28 @@ and a placeholder fixture list based on the club's original static site.
 Correct positions/jersey numbers and add real photos and bios for
 everyone once available.
 
+## Light / dark theme toggle
+
+There's a sun/moon button in the header (next to the mobile menu icon) that
+switches the whole site between the dark navy theme and a light theme,
+without a page reload. The choice is remembered per-browser via
+`localStorage`, so returning visitors keep their preference.
+
+This is implemented with CSS custom properties: `static/css/style.css`
+defines the dark palette on `:root` and a light override on
+`html[data-theme="light"]`; `static/js/main.js` flips that attribute on
+click, and a small inline script in `base.html` applies the saved choice
+before the page paints (so there's no flash of the wrong theme).
+
 ## Changing the color theme
 
-`static/css/style.css` defines all colors as CSS variables in a `:root`
-block at the top of the file. Right below the active navy/gold/crimson
-theme there's a second, **commented-out** `:root` block using a red/blue
-palette (`#FF0000` / `#0055DA`). To switch themes: comment out the active
-block and uncomment the alternate one (keep exactly one `:root` block
-active at a time), then refresh the page.
+Independently of the light/dark toggle above, `static/css/style.css` also
+has a second, **commented-out** `:root` block near the top of the file
+using a red/blue palette (`#FF0000` / `#0055DA`) instead of the default
+navy/gold/crimson brand colors. To try it: comment out the active `:root`
+block and uncomment the alternate one (keep exactly one default `:root`
+block active at a time — the light-theme override can stay as-is either
+way), then refresh the page.
 
 ## Notes
 

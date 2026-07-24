@@ -3,12 +3,16 @@
    ------------------------------------------------------- */
 
 :root {
+  /* Dark theme (default — active when <html> has no data-theme attribute,
+     or data-theme="dark"). Toggled at runtime by the theme switch button
+     in the header; see the light theme override further below. */
   --color-bg: #0a1120;
   --color-bg-alt: #101d33;
   --color-bg-alt-2: #16233c;
   --color-ink: #f4f1e6;
   --color-ink-soft: #9aa7be;
   --color-border: rgba(255, 255, 255, 0.09);
+  --color-header-bg: rgba(10, 17, 32, 0.92);
   --color-primary: #d81e3f;
   --color-primary-dark: #9c1530;
   --color-accent: #eab53c;
@@ -19,11 +23,35 @@
   --font-body: "Rubik", sans-serif;
 }
 
+/* Light theme — applied when the header's sun/moon button sets
+   data-theme="light" on <html> (persisted in localStorage). Kept in sync
+   with the dark palette above: same brand crimson red, warmer/darker gold
+   so text stays readable on a light background. */
+html[data-theme="light"] {
+  --color-bg: #f8f5ee;
+  --color-bg-alt: #ffffff;
+  --color-bg-alt-2: #efe8d8;
+  --color-ink: #201b12;
+  --color-ink-soft: #6b6355;
+  --color-border: rgba(32, 27, 18, 0.1);
+  --color-header-bg: rgba(248, 245, 238, 0.92);
+  --color-primary: #d81e3f;
+  --color-primary-dark: #9c1530;
+  --color-accent: #a8710a;
+  --color-accent-2: #c2571f;
+  --radius: 14px;
+  --shadow: 0 12px 32px rgba(32, 27, 18, 0.12);
+  --font-heading: "Playfair Display", serif;
+  --font-body: "Rubik", sans-serif;
+}
+
 /* -------------------------------------------------------
-   ALTERNATE THEME (not active) — the club may switch to this
-   red/blue palette instead of the navy/gold one above. To try
-   it: comment out the ":root" block above and uncomment the
-   block below (keep only one ":root" block active at a time).
+   ALTERNATE BRAND THEME (not active) — separate from the light/dark
+   toggle above. The club may switch to this red/blue palette instead of
+   the navy/gold one. To try it: comment out the dark ":root" block near
+   the top of this file and uncomment the block below (keep only one
+   default ":root" block active at a time — the light theme override
+   above can stay as-is either way).
    ------------------------------------------------------- */
 /*
 :root {
@@ -33,6 +61,7 @@
   --color-ink: #f4f1e6;
   --color-ink-soft: #9aa7be;
   --color-border: rgba(255, 255, 255, 0.09);
+  --color-header-bg: rgba(10, 17, 32, 0.92);
   --color-primary: #FF0000;
   --color-primary-dark: #b30000;
   --color-accent: #0055DA;
@@ -58,6 +87,7 @@ body {
   color: var(--color-ink);
   background: var(--color-bg);
   line-height: 1.65;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 h1, h2, h3, h4 {
@@ -119,16 +149,19 @@ img {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(10, 17, 32, 0.95);
-  backdrop-filter: blur(6px);
+  background: var(--color-header-bg);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.12);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 80px;
+  gap: 24px;
+  height: 76px;
   position: relative;
 }
 
@@ -136,6 +169,7 @@ img {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .brand-logo {
@@ -143,6 +177,8 @@ img {
   height: 44px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .brand-logo--placeholder {
@@ -159,6 +195,9 @@ img {
 .brand-text {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1;
 }
 
 .brand-name {
@@ -166,28 +205,37 @@ img {
   font-size: 1.15rem;
   font-weight: 800;
   color: var(--color-accent);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
 }
 
 .brand-sub {
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   color: var(--color-ink-soft);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+.nav-wrap {
+  display: flex;
+  align-items: center;
+  gap: 32px;
 }
 
 .main-nav {
   display: flex;
+  align-items: center;
   gap: 30px;
 }
 
 .main-nav a {
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--color-ink-soft);
-  padding: 6px 2px;
+  padding: 8px 2px;
   border-bottom: 2px solid transparent;
   transition: color 0.2s, border-color 0.2s;
 }
@@ -195,6 +243,50 @@ img {
 .main-nav a:hover {
   color: var(--color-accent);
   border-color: var(--color-primary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-alt);
+  color: var(--color-accent);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.theme-toggle .icon-moon {
+  display: none;
+}
+
+html[data-theme="light"] .theme-toggle .icon-sun {
+  display: none;
+}
+
+html[data-theme="light"] .theme-toggle .icon-moon {
+  display: block;
 }
 
 .nav-toggle {
@@ -209,9 +301,10 @@ img {
 }
 
 .nav-burger span {
-  width: 24px;
+  width: 22px;
   height: 2px;
   background: var(--color-ink);
+  border-radius: 1px;
 }
 
 /* ---------- Buttons ---------- */
@@ -235,7 +328,7 @@ img {
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(216, 30, 63, 0.4);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 .btn-ghost {
@@ -247,7 +340,7 @@ img {
 
 .hero {
   background:
-    radial-gradient(circle at 50% 0%, rgba(216, 30, 63, 0.18), transparent 55%),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 55%),
     var(--color-bg);
   padding: 110px 0 90px;
   text-align: center;
@@ -266,7 +359,7 @@ img {
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 24px;
-  box-shadow: 0 0 0 4px rgba(234, 181, 60, 0.25);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
 .hero-logo--placeholder {
@@ -921,7 +1014,7 @@ img {
 }
 
 .flash-message {
-  background: rgba(234, 181, 60, 0.15);
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
   border: 1px solid var(--color-accent);
   color: var(--color-accent);
   border-radius: 10px;
@@ -933,10 +1026,11 @@ img {
 /* ---------- Footer ---------- */
 
 .site-footer {
-  background: #060b15;
+  background: var(--color-bg-alt-2);
   color: var(--color-ink-soft);
   padding: 48px 0 20px;
   border-top: 1px solid var(--color-border);
+  transition: background-color 0.25s ease;
 }
 
 .footer-inner {
@@ -964,7 +1058,8 @@ img {
 .footer-copy {
   text-align: center;
   font-size: 0.8rem;
-  color: #5a6478;
+  color: var(--color-ink-soft);
+  opacity: 0.75;
   margin-top: 32px;
   margin-bottom: 0;
 }
@@ -976,11 +1071,16 @@ img {
     display: flex;
   }
 
+  .nav-wrap {
+    gap: 14px;
+  }
+
   .main-nav {
     position: absolute;
-    top: 80px;
+    top: 76px;
     left: 0;
     right: 0;
+    align-items: flex-start;
     background: var(--color-bg);
     border-bottom: 1px solid var(--color-border);
     flex-direction: column;
