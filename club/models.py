@@ -113,11 +113,23 @@ class GalleryImage(models.Model):
 
 
 class Match(models.Model):
+    class Status(models.TextChoices):
+        SCHEDULED = "SCHEDULED", "Scheduled"
+        LIVE = "LIVE", "Live now"
+        FINISHED = "FINISHED", "Finished"
+
     opponent = models.CharField(max_length=120, help_text='e.g. "Darwin FC".')
     match_date = models.DateField()
     match_time = models.TimeField(blank=True, null=True)
     venue = models.CharField(max_length=150, blank=True)
     is_home = models.BooleanField(default=True)
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.SCHEDULED,
+        help_text="Set to 'Live now' on match day to show it at the top of "
+        "the schedule with a live indicator and score.",
+    )
     home_score = models.PositiveSmallIntegerField(blank=True, null=True)
     away_score = models.PositiveSmallIntegerField(blank=True, null=True)
     notes = models.CharField(max_length=200, blank=True)
@@ -131,6 +143,10 @@ class Match(models.Model):
     @property
     def is_played(self):
         return self.home_score is not None and self.away_score is not None
+
+    @property
+    def is_live(self):
+        return self.status == self.Status.LIVE
 
 
 class ContactMessage(models.Model):

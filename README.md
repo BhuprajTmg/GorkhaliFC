@@ -20,16 +20,26 @@ with the nav bar linking to in-page sections via anchors
   links out to its own dedicated profile page (photo, jersey number, bio)
   — the only page that isn't a section of the one-pager, similar to the
   original per-player HTML files.
-- **Schedule** — upcoming fixtures and past results (home/away tags,
-  scores).
-- **Register** — a tournament team registration form: team name, division,
-  manager/coach contact, plus a **fixed 15-slot player roster** (name +
-  jersey number per row — see `club.models.ROSTER_SIZE` to change the
-  count). The player count is calculated automatically from how many
-  roster rows have a name, not manually typed in. Submissions are saved
-  to the database, emailed to the club with both a Word (`.docx`) and a
-  PDF summary attached (full roster included), and manageable
-  (approve / waitlist / reject) from the admin.
+- **Schedule** — driven by each match's **Status** (set from the admin:
+  Scheduled / Live now / Finished):
+  - Any match marked **Live now** shows in a "Live Now" section at the
+    very top, with a pulsing red dot, a glowing highlighted border, and
+    the live score.
+  - The next **Scheduled** match is highlighted as "Next Match", followed
+    by the rest of the upcoming fixtures.
+  - Matches marked **Finished** show under "Results" with their final
+    score.
+- **Register** — a "Register Your Team" button that opens a floating,
+  semi-transparent form overlay (doesn't take up space on the page until
+  clicked) with: team name, division, manager/coach contact, plus a
+  **fixed 15-slot player roster** (name + jersey number per row — see
+  `club.models.ROSTER_SIZE` to change the count). The player count is
+  calculated automatically from how many roster rows have a name, not
+  manually typed in. Submissions are saved to the database, emailed to
+  the club with both a Word (`.docx`) and a PDF summary attached (full
+  roster included), and manageable (approve / waitlist / reject) from
+  the admin. If a submission has errors, the form re-opens automatically
+  showing what needs fixing.
 - **Photos** — gallery with category filters (Matches, Team Photos,
   Training, ...) filtered instantly with JS, no page reload.
 - **Contact** — club contact details, social links, and a working contact
@@ -212,7 +222,10 @@ Everything editable lives in the Django admin (`/admin/`):
 - **Players** — name, position, jersey number, photo, bio, captain flag,
   display order.
 - **Matches** — fixtures/results: opponent, date, time, venue, home/away,
-  score.
+  score, and **Status**. Set Status to "Live now" during the match to
+  show it at the top of the schedule with a pulsing live indicator —
+  update the score fields as the match progresses, then set Status to
+  "Finished" afterwards to move it into Results.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section

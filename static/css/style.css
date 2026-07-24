@@ -860,6 +860,77 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   font-size: 1.4rem;
 }
 
+.schedule-subtitle {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-ink-soft);
+  margin: 32px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.match-list:first-of-type + .schedule-subtitle,
+.section-body > .schedule-subtitle:first-child {
+  margin-top: 0;
+}
+
+.schedule-subtitle--live {
+  color: var(--color-primary);
+}
+
+/* Pulsing "beeping" red dot used both in the schedule subtitle and on
+   each live match row. */
+.live-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff2f4d;
+  box-shadow: 0 0 0 0 rgba(255, 47, 77, 0.7);
+  animation: live-pulse 1.4s ease-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 47, 77, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(255, 47, 77, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 47, 77, 0);
+  }
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ff2f4d;
+  margin-bottom: 4px;
+}
+
+/* Thin, semi-transparent glowing outline to set a live match's row apart
+   from the rest of the schedule. */
+.match-row--live {
+  border: 1px solid rgba(255, 47, 77, 0.45);
+  box-shadow: 0 0 0 1px rgba(255, 47, 77, 0.12), 0 0 24px rgba(255, 47, 77, 0.18);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-alt));
+}
+
+.match-score--live {
+  color: #ff2f4d;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.3rem;
+}
+
 .schedule-note {
   margin-top: 28px;
   font-size: 0.85rem;
@@ -869,39 +940,68 @@ html[data-theme="light"] .theme-toggle .icon-moon {
 
 /* ---------- Tournament registration ---------- */
 
-.register-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.3fr;
-  gap: 48px;
-  align-items: start;
+.register-cta-section {
+  text-align: center;
 }
 
-.register-info p {
-  margin-bottom: 18px;
-}
-
-.register-points {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.register-cta {
+  max-width: 560px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
 }
 
-.register-points li {
+.register-cta .eyebrow,
+.register-cta h2 {
+  text-align: center;
+}
+
+.register-cta-text {
+  margin: 0 0 28px;
+}
+
+/* Floating semi-transparent form modal opened by the "Register Your
+   Team" button — same overlay pattern as the success/error popup, but
+   holds the actual registration form and stays open until closed (or
+   reopens automatically if the last submission had errors to fix). */
+.form-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 8, 15, 0.72);
+  backdrop-filter: blur(3px);
+  animation: modal-fade-in 0.18s ease;
+}
+
+.form-modal-overlay.is-open {
+  display: flex;
+}
+
+.form-modal-overlay.is-closing {
+  animation: modal-fade-out 0.15s ease forwards;
+}
+
+.form-modal-box {
   position: relative;
-  padding-left: 24px;
-  color: var(--color-ink-soft);
-  font-size: 0.92rem;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--color-bg-alt) 92%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  padding: 32px 28px 28px;
 }
 
-.register-points li::before {
-  content: "⚽";
-  position: absolute;
-  left: 0;
-  top: 0;
-  font-size: 0.85rem;
+.form-modal-title {
+  margin-bottom: 20px;
+  font-size: 1.5rem;
 }
 
 /* ---------- Gallery ---------- */

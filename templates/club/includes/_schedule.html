@@ -5,54 +5,47 @@
         <span class="accent-underline"></span>
 
         <div class="section-body">
+            {% if live_matches %}
+            <h3 class="schedule-subtitle schedule-subtitle--live">
+                <span class="live-dot"></span> Live Now
+            </h3>
             <div class="match-list">
-                {% for match in upcoming_matches %}
-                <div class="match-row">
-                    <div class="match-date {% if match.is_home %}match-date--home{% endif %}">
-                        <span class="match-date-month">{{ match.match_date|date:"M" }}</span>
-                        <span class="match-date-day">{{ match.match_date|date:"d" }}</span>
-                        <span class="match-date-year">{{ match.match_date|date:"Y" }}</span>
-                    </div>
-                    <div class="match-info">
-                        <h4>{{ club.name|default:"Gurkhali FC" }} vs {{ match.opponent }}</h4>
-                        <p>{% if match.venue %}{{ match.venue }} &bull; {% endif %}{% if match.match_time %}{{ match.match_time|time:"g:i A" }}{% endif %}</p>
-                    </div>
-                    <span class="match-tag {% if match.is_home %}match-tag--home{% else %}match-tag--away{% endif %}">
-                        {% if match.is_home %}HOME{% else %}AWAY{% endif %}
-                    </span>
-                </div>
-                {% empty %}
-                <p class="empty-state">No fixtures scheduled yet. Add matches from the Django admin.</p>
+                {% for match in live_matches %}
+                    {% include "club/includes/_match_row.html" with match=match %}
                 {% endfor %}
             </div>
+            {% endif %}
+
+            {% if next_match %}
+            <h3 class="schedule-subtitle">Next Match</h3>
+            <div class="match-list">
+                {% include "club/includes/_match_row.html" with match=next_match %}
+            </div>
+            {% endif %}
+
+            {% if upcoming_matches %}
+            <h3 class="schedule-subtitle">Upcoming</h3>
+            <div class="match-list">
+                {% for match in upcoming_matches %}
+                    {% include "club/includes/_match_row.html" with match=match %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if not live_matches and not next_match and not upcoming_matches %}
+            <p class="empty-state">No fixtures scheduled yet. Add matches from the Django admin.</p>
+            {% endif %}
 
             {% if past_matches %}
             <h3 class="results-title">Results</h3>
             <div class="match-list">
                 {% for match in past_matches %}
-                <div class="match-row match-row--result">
-                    <div class="match-date {% if match.is_home %}match-date--home{% endif %}">
-                        <span class="match-date-month">{{ match.match_date|date:"M" }}</span>
-                        <span class="match-date-day">{{ match.match_date|date:"d" }}</span>
-                        <span class="match-date-year">{{ match.match_date|date:"Y" }}</span>
-                    </div>
-                    <div class="match-info">
-                        <h4>{{ club.name|default:"Gurkhali FC" }} vs {{ match.opponent }}</h4>
-                        <p>{% if match.venue %}{{ match.venue }}{% endif %}</p>
-                    </div>
-                    {% if match.is_played %}
-                    <span class="match-score">{{ match.home_score }} - {{ match.away_score }}</span>
-                    {% else %}
-                    <span class="match-tag {% if match.is_home %}match-tag--home{% else %}match-tag--away{% endif %}">
-                        {% if match.is_home %}HOME{% else %}AWAY{% endif %}
-                    </span>
-                    {% endif %}
-                </div>
+                    {% include "club/includes/_match_row.html" with match=match %}
                 {% endfor %}
             </div>
             {% endif %}
 
-            <p class="schedule-note">&#9888; Update fixtures anytime from the Django admin.</p>
+            <p class="schedule-note">&#9888; Update fixtures anytime from the Django admin — set a match's status to "Live now" on match day to show it here with a live score.</p>
         </div>
     </div>
 </section>

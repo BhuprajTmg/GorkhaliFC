@@ -77,8 +77,18 @@ class GalleryImageAdmin(admin.ModelAdmin):
 
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
-    list_display = ("opponent", "match_date", "match_time", "is_home", "venue")
-    list_filter = ("is_home",)
+    list_display = (
+        "opponent",
+        "match_date",
+        "match_time",
+        "status",
+        "is_home",
+        "venue",
+        "home_score",
+        "away_score",
+    )
+    list_editable = ("status", "home_score", "away_score")
+    list_filter = ("status", "is_home")
     date_hierarchy = "match_date"
 
 

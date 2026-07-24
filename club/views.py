@@ -1,6 +1,5 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
 from .emails import send_contact_notification, send_registration_notification
 from .forms import ContactForm, RegisteredPlayerFormSet, TeamRegistrationForm
@@ -69,15 +68,25 @@ def home(request):
         if group_players:
             grouped_players.append({"label": label, "players": group_players})
 
-    today = timezone.now().date()
+    # Schedule: live matches always shown first, then the very next
+    # scheduled match is highlighted as "Next Match", then the rest of the
+    # upcoming fixtures, then finished matches as results. Driven by the
+    # Match.status field (set from the admin), not just today's date, so
+    # a match manually marked "Live now" always surfaces at the top.
+    live_matches = list(Match.objects.filter(status=Match.Status.LIVE))
+    scheduled_matches = list(Match.objects.filter(status=Match.Status.SCHEDULED))
+    next_match = scheduled_matches[0] if scheduled_matches else None
+    upcoming_matches = scheduled_matches[1:] if next_match else []
+    past_matches = Match.objects.filter(status=Match.Status.FINISHED).order_by("-match_date")
 
     context = {
         "club": club,
         "players_count": active_players.count(),
         "grouped_players": grouped_players,
-        "upcoming_matches": Match.objects.filter(match_date__gte=today),
-        "past_matches": Match.objects.filter(match_date__lt=today).order_by("-match_date"),
-        "next_match": Match.objects.filter(match_date__gte=today).first(),
+        "live_matches": live_matches,
+        "next_match": next_match,
+        "upcoming_matches": upcoming_matches,
+        "past_matches": past_matches,
         "categories": GalleryCategory.objects.all(),
         "images": GalleryImage.objects.all(),
         "form": contact_form,

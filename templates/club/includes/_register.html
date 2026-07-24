@@ -1,119 +1,116 @@
-<section class="section" id="register">
-    <div class="container">
+<section class="section register-cta-section" id="register">
+    <div class="container register-cta">
         <p class="eyebrow">Join the Competition</p>
         <h2>Register Your <span class="text-accent">Team</span></h2>
         <span class="accent-underline"></span>
-
-        <div class="register-grid">
-            <div class="register-info">
-                <p>
-                    Want your team to play in a Gurkhali FC tournament? Fill out the
-                    form and our organisers will confirm your spot and send you the
-                    fixture details, kit colours, and any remaining steps.
-                </p>
-                <ul class="register-points">
-                    <li>Open to any registered or casual team — just bring a squad.</li>
-                    <li>List your players below so we can track who's actually playing.</li>
-                    <li>We'll email you a confirmation once your registration is reviewed.</li>
-                    <li>Questions before you register? Reach out via the Contact section.</li>
-                </ul>
-            </div>
-
-            <form class="contact-form register-form" method="post" action="#register">
-                {% csrf_token %}
-                <input type="hidden" name="form_name" value="registration">
-
-                <div class="form-row">
-                    <label>
-                        Tournament
-                        {{ registration_form.tournament_name }}
-                        {{ registration_form.tournament_name.errors }}
-                    </label>
-                    <label>
-                        Division
-                        {{ registration_form.division }}
-                        {{ registration_form.division.errors }}
-                    </label>
-                </div>
-
-                <label>
-                    Team Name
-                    {{ registration_form.team_name }}
-                    {{ registration_form.team_name.errors }}
-                </label>
-
-                <div class="form-row">
-                    <label>
-                        Manager / Coach Name
-                        {{ registration_form.manager_name }}
-                        {{ registration_form.manager_name.errors }}
-                    </label>
-                    <label>
-                        Home City / Suburb
-                        {{ registration_form.home_city }}
-                        {{ registration_form.home_city.errors }}
-                    </label>
-                </div>
-
-                <div class="form-row">
-                    <label>
-                        Phone
-                        {{ registration_form.phone }}
-                        {{ registration_form.phone.errors }}
-                    </label>
-                    <label>
-                        Email
-                        {{ registration_form.email }}
-                        {{ registration_form.email.errors }}
-                    </label>
-                </div>
-
-                <label>
-                    Previous Tournament Experience
-                    {{ registration_form.experience }}
-                </label>
-
-                <label>
-                    Notes
-                    {{ registration_form.notes }}
-                </label>
-
-                <div class="roster-section">
-                    {{ roster_formset.management_form }}
-                    <div class="roster-heading">
-                        <h4>Player Roster</h4>
-                        <p class="roster-hint">{{ roster_formset|length }} fixed slots — leave any unused ones blank.</p>
-                    </div>
-                    {% if roster_formset.non_form_errors %}
-                        <p class="form-error">{{ roster_formset.non_form_errors.0 }}</p>
-                    {% endif %}
-                    <div class="roster-grid">
-                        <div class="roster-row roster-row--header">
-                            <span>#</span>
-                            <span>Player Name</span>
-                            <span>Jersey #</span>
-                        </div>
-                        {% for player_form in roster_formset %}
-                        <div class="roster-row">
-                            <span class="roster-index">{{ forloop.counter }}</span>
-                            {{ player_form.name }}
-                            {{ player_form.jersey_number }}
-                            {{ player_form.id }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <label class="checkbox-label">
-                    {{ registration_form.agreed_to_rules }}
-                    <span>{{ registration_form.agreed_to_rules.label }}</span>
-                </label>
-                {% if registration_form.agreed_to_rules.errors %}
-                    <p class="form-error">{{ registration_form.agreed_to_rules.errors.0 }}</p>
-                {% endif %}
-
-                <button type="submit" class="btn btn-primary">Submit Registration</button>
-            </form>
-        </div>
+        <p class="register-cta-text">
+            Want your team to play in a Gurkhali FC tournament? Click below to
+            fill out the registration form — team details, contact info, and
+            your player roster.
+        </p>
+        <button type="button" class="btn btn-primary" id="open-register-form">Register Your Team</button>
     </div>
 </section>
+
+<div class="form-modal-overlay {% if registration_form.errors or roster_formset.errors or roster_formset.non_form_errors %}is-open{% endif %}" id="register-form-modal">
+    <div class="form-modal-box">
+        <button type="button" class="modal-close" id="register-form-close" aria-label="Close">&times;</button>
+        <h3 class="form-modal-title">Register Your Team</h3>
+
+        <form class="contact-form register-form" method="post" action="#register">
+            {% csrf_token %}
+            <input type="hidden" name="form_name" value="registration">
+
+            <div class="form-row">
+                <label>
+                    Tournament
+                    {{ registration_form.tournament_name }}
+                    {{ registration_form.tournament_name.errors }}
+                </label>
+                <label>
+                    Division
+                    {{ registration_form.division }}
+                    {{ registration_form.division.errors }}
+                </label>
+            </div>
+
+            <label>
+                Team Name
+                {{ registration_form.team_name }}
+                {{ registration_form.team_name.errors }}
+            </label>
+
+            <div class="form-row">
+                <label>
+                    Manager / Coach Name
+                    {{ registration_form.manager_name }}
+                    {{ registration_form.manager_name.errors }}
+                </label>
+                <label>
+                    Home City / Suburb
+                    {{ registration_form.home_city }}
+                    {{ registration_form.home_city.errors }}
+                </label>
+            </div>
+
+            <div class="form-row">
+                <label>
+                    Phone
+                    {{ registration_form.phone }}
+                    {{ registration_form.phone.errors }}
+                </label>
+                <label>
+                    Email
+                    {{ registration_form.email }}
+                    {{ registration_form.email.errors }}
+                </label>
+            </div>
+
+            <label>
+                Previous Tournament Experience
+                {{ registration_form.experience }}
+            </label>
+
+            <label>
+                Notes
+                {{ registration_form.notes }}
+            </label>
+
+            <div class="roster-section">
+                {{ roster_formset.management_form }}
+                <div class="roster-heading">
+                    <h4>Player Roster</h4>
+                    <p class="roster-hint">{{ roster_formset|length }} fixed slots — leave any unused ones blank.</p>
+                </div>
+                {% if roster_formset.non_form_errors %}
+                    <p class="form-error">{{ roster_formset.non_form_errors.0 }}</p>
+                {% endif %}
+                <div class="roster-grid">
+                    <div class="roster-row roster-row--header">
+                        <span>#</span>
+                        <span>Player Name</span>
+                        <span>Jersey #</span>
+                    </div>
+                    {% for player_form in roster_formset %}
+                    <div class="roster-row">
+                        <span class="roster-index">{{ forloop.counter }}</span>
+                        {{ player_form.name }}
+                        {{ player_form.jersey_number }}
+                        {{ player_form.id }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <label class="checkbox-label">
+                {{ registration_form.agreed_to_rules }}
+                <span>{{ registration_form.agreed_to_rules.label }}</span>
+            </label>
+            {% if registration_form.agreed_to_rules.errors %}
+                <p class="form-error">{{ registration_form.agreed_to_rules.errors.0 }}</p>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">Submit Registration</button>
+        </form>
+    </div>
+</div>
