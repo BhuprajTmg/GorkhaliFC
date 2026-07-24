@@ -1,0 +1,34 @@
+<section class="section" id="players">
+    <div class="container">
+        <p class="eyebrow">The Squad</p>
+        <h2>Meet the <span class="text-accent">Warriors</span></h2>
+        <span class="accent-underline"></span>
+
+        <div class="section-body">
+            {% for group in grouped_players %}
+            <div class="player-group">
+                <h3 class="player-group-title">{{ group.label }}s</h3>
+                <div class="player-grid">
+                    {% for player in group.players %}
+                    <a class="player-card" href="{{ player.get_absolute_url }}">
+                        <div class="player-photo">
+                            {% if player.photo %}
+                                <img src="{{ player.photo.url }}" alt="{{ player.name }}">
+                            {% else %}
+                                <span class="player-photo-placeholder">{{ player.name|slice:":1" }}</span>
+                            {% endif %}
+                            {% if player.jersey_number %}<span class="jersey-badge">{{ player.jersey_number }}</span>{% endif %}
+                            {% if player.is_captain %}<span class="captain-badge">C</span>{% endif %}
+                        </div>
+                        <h4>{{ player.name }}</h4>
+                        <p>{{ player.get_position_display }}</p>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="empty-state">No players added yet. Add players from the Django admin.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>

@@ -19,6 +19,31 @@
   --font-body: "Rubik", sans-serif;
 }
 
+/* -------------------------------------------------------
+   ALTERNATE THEME (not active) — the club may switch to this
+   red/blue palette instead of the navy/gold one above. To try
+   it: comment out the ":root" block above and uncomment the
+   block below (keep only one ":root" block active at a time).
+   ------------------------------------------------------- */
+/*
+:root {
+  --color-bg: #0a1120;
+  --color-bg-alt: #101d33;
+  --color-bg-alt-2: #16233c;
+  --color-ink: #f4f1e6;
+  --color-ink-soft: #9aa7be;
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-primary: #FF0000;
+  --color-primary-dark: #b30000;
+  --color-accent: #0055DA;
+  --color-accent-2: #2a76ff;
+  --radius: 14px;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --font-heading: "Playfair Display", serif;
+  --font-body: "Rubik", sans-serif;
+}
+*/
+
 * {
   box-sizing: border-box;
 }
@@ -73,8 +98,19 @@ img {
   width: 64px;
   height: 3px;
   background: var(--color-primary);
-  margin-top: 14px;
+  margin: 14px 0 40px;
   border-radius: 2px;
+}
+
+/* Anchor targets: offset scroll position so content isn't hidden
+   behind the sticky header when jumping via the nav links. */
+#home,
+#about,
+#players,
+#schedule,
+#photos,
+#contact {
+  scroll-margin-top: 92px;
 }
 
 /* ---------- Header ---------- */
@@ -303,17 +339,6 @@ img {
   font-weight: 600;
 }
 
-.page-header {
-  padding: 64px 0 32px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-alt);
-}
-
-.page-header h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  color: var(--color-ink);
-}
-
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 3px;
@@ -321,6 +346,15 @@ img {
   font-weight: 700;
   color: var(--color-primary);
   margin-bottom: 10px;
+}
+
+.section > .container > h2 {
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  color: var(--color-ink);
+}
+
+.section-body {
+  margin-top: 8px;
 }
 
 /* ---------- Mini stats ---------- */
@@ -456,7 +490,7 @@ img {
   font-size: 0.7rem;
 }
 
-.player-card h3 {
+.player-card h4 {
   font-size: 1.05rem;
   margin-bottom: 2px;
   color: var(--color-ink);
@@ -656,7 +690,7 @@ img {
   flex: 1;
 }
 
-.match-info h3 {
+.match-info h4 {
   font-size: 1.05rem;
   margin-bottom: 2px;
   color: var(--color-ink);

@@ -14,7 +14,7 @@
 <body>
     <header class="site-header">
         <div class="container header-inner">
-            <a class="brand" href="{% url 'club:home' %}">
+            <a class="brand" href="{% url 'club:home' %}#home">
                 {% if club.logo %}
                     <img src="{{ club.logo.url }}" alt="{{ club.name }} logo" class="brand-logo">
                 {% else %}
@@ -30,12 +30,12 @@
                 <span></span><span></span><span></span>
             </label>
             <nav class="main-nav">
-                <a href="{% url 'club:home' %}">Home</a>
-                <a href="{% url 'club:about' %}">About</a>
-                <a href="{% url 'club:players' %}">Players</a>
-                <a href="{% url 'club:schedule' %}">Schedule</a>
-                <a href="{% url 'club:photos' %}">Photos</a>
-                <a href="{% url 'club:contact' %}">Contact</a>
+                <a href="{% url 'club:home' %}#home">Home</a>
+                <a href="{% url 'club:home' %}#about">About</a>
+                <a href="{% url 'club:home' %}#players">Players</a>
+                <a href="{% url 'club:home' %}#schedule">Schedule</a>
+                <a href="{% url 'club:home' %}#photos">Photos</a>
+                <a href="{% url 'club:home' %}#contact">Contact</a>
             </nav>
         </div>
     </header>

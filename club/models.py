@@ -53,8 +53,16 @@ class Player(models.Model):
         max_length=2, choices=Position.choices, default=Position.MIDFIELDER
     )
     jersey_number = models.PositiveSmallIntegerField(blank=True, null=True)
-    photo = models.ImageField(upload_to="players/", blank=True, null=True)
-    bio = models.TextField(blank=True)
+    photo = models.ImageField(
+        upload_to="players/",
+        blank=True,
+        null=True,
+        help_text="Square headshot works best (e.g. 500x500px). Shown on the squad grid and profile page.",
+    )
+    bio = models.TextField(
+        blank=True,
+        help_text="Short player background/description shown on their profile page.",
+    )
     date_of_birth = models.DateField(blank=True, null=True)
     is_captain = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)

@@ -13,7 +13,7 @@
             {% endif %}
         </div>
         <div class="player-detail-info">
-            <a class="link-arrow" href="{% url 'club:players' %}">&larr; Back to squad</a>
+            <a class="link-arrow" href="{% url 'club:home' %}#players">&larr; Back to squad</a>
             <h1>{{ player.name }}{% if player.is_captain %} <span class="captain-badge captain-badge--inline">Captain</span>{% endif %}</h1>
             <p class="player-detail-position">{{ player.get_position_display }}{% if player.jersey_number %} &middot; #{{ player.jersey_number }}{% endif %}</p>
             {% if player.date_of_birth %}<p class="player-detail-dob">Born {{ player.date_of_birth }}</p>{% endif %}

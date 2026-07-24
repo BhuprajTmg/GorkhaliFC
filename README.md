@@ -8,30 +8,37 @@ instead of editing raw HTML files.
 
 ## Features
 
-- **Home page** — hero banner (club name, motto, CTAs), quick stats, next
-  match teaser, gallery preview.
-- **About page** — editable club story, founding year, home ground.
-- **Players page** — squad grouped by position (Goalkeepers, Defenders,
-  Midfielders, Forwards); click through to a player's profile page (photo,
-  jersey number, bio).
-- **Schedule page** — upcoming fixtures and past results (home/away tags,
+The site is a **single scrollable page** (like the original static site),
+with the nav bar linking to in-page sections via anchors
+(`/#about`, `/#players`, `/#schedule`, `/#photos`, `/#contact`) instead of
+separate pages:
+
+- **Home** — hero banner (club name, motto, CTAs), quick stats.
+- **About** — editable club story, founding year, home ground.
+- **Players** — squad grouped by position (Goalkeepers, Defenders,
+  Midfielders, Forwards). Each player card links out to its own dedicated
+  profile page (photo, jersey number, bio) — the only page that isn't a
+  section of the one-pager, similar to the original per-player HTML files.
+- **Schedule** — upcoming fixtures and past results (home/away tags,
   scores).
-- **Photos page** — gallery with category filters (Matches, Team Photos,
-  Training, ...).
-- **Contact page** — club contact details, social links, and a working
-  contact form (messages are saved and viewable in the admin).
+- **Photos** — gallery with category filters (Matches, Team Photos,
+  Training, ...) filtered instantly with JS, no page reload.
+- **Contact** — club contact details, social links, and a working contact
+  form (submits without leaving the page; messages are saved and viewable
+  in the admin).
 - **Django admin** — manage everything above (players, fixtures, gallery
   images, club info, contact messages) without touching code, at `/admin/`.
 
 ## Project layout
 
 ```
-gurkhali_fc/         Django project settings & root URLs
-club/                Main app: models, views, urls, forms, admin, management command
-templates/club/      HTML templates (base layout + one per page)
-static/css/          Site styling (style.css)
-static/js/           Small JS (mobile nav toggle)
-media/               User-uploaded images (players, gallery, logo) - gitignored
+gurkhali_fc/            Django project settings & root URLs
+club/                   Main app: models, views, urls, forms, admin, management command
+templates/club/         base.html (layout + nav) and home.html (assembles sections)
+templates/club/includes/  One partial per section: _hero, _about, _players, _schedule, _photos, _contact
+static/css/             Site styling (style.css) — includes a commented-out alternate theme
+static/js/               Mobile nav toggle + gallery category filter (main.js, gallery-filter.js)
+media/                  User-uploaded images (players, gallery, logo) - gitignored
 ```
 
 ## Getting started
@@ -74,8 +81,35 @@ media/               User-uploaded images (players, gallery, logo) - gitignored
    ```
 
 7. Visit `http://127.0.0.1:8000/` for the site and
-   `http://127.0.0.1:8000/admin/` to manage content (players, gallery
-   photos, news, club info).
+   `http://127.0.0.1:8000/admin/` to manage content (players, fixtures,
+   gallery photos, club info).
+
+## Adding player photos & descriptions
+
+This is the main thing to do once you have the real squad details:
+
+1. Go to `http://127.0.0.1:8000/admin/` and log in.
+2. Click **Players**.
+3. Click an existing player (e.g. "Sohan Khadka") to edit them, or
+   **Add player** to create a new one.
+4. Fill in:
+   - **Name**, **Position**, **Jersey number** — shown on the squad card.
+   - **Photo** — upload a square headshot (roughly 500x500px works best).
+     A live preview shows up once you save.
+   - **Bio** — a short paragraph about the player; shown on their profile
+     page (the page you get to by clicking their card).
+   - **Is captain** — ticks a "C" badge on their card.
+   - **Order** — lower numbers appear first within their position group.
+5. Click **Save**. The change appears immediately on the live site (no
+   restart needed) — refresh `http://127.0.0.1:8000/#players`.
+
+To remove a placeholder player instead of editing them, open them in the
+admin and use the **Delete** button, or untick **Is active** to hide them
+without deleting their record.
+
+The **Gallery Images** section works the same way for match/team photos,
+and **Club Info** is where you set the club logo, about text, and contact
+details.
 
 ## Managing content
 
@@ -89,13 +123,23 @@ Everything editable lives in the Django admin (`/admin/`):
   score.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,
   Team Photos) and upload images with captions.
-- **Contact Messages** — messages submitted through the Contact page form.
+- **Contact Messages** — messages submitted through the Contact section
+  form.
 
 The `seed_demo` command creates a starting squad (Sohan Khadka - GK, Niroj
 Shrestha - DF, Ujjwal Giri - DF, plus a few more with best-guess positions)
 and a placeholder fixture list based on the club's original static site.
 Correct positions/jersey numbers and add real photos and bios for
 everyone once available.
+
+## Changing the color theme
+
+`static/css/style.css` defines all colors as CSS variables in a `:root`
+block at the top of the file. Right below the active navy/gold/crimson
+theme there's a second, **commented-out** `:root` block using a red/blue
+palette (`#FF0000` / `#0055DA`). To switch themes: comment out the active
+block and uncomment the alternate one (keep exactly one `:root` block
+active at a time), then refresh the page.
 
 ## Notes
 

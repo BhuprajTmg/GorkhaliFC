@@ -1,0 +1,29 @@
+<section class="section" id="photos">
+    <div class="container">
+        <p class="eyebrow">Moments</p>
+        <h2>Photo <span class="text-accent">Gallery</span></h2>
+        <span class="accent-underline"></span>
+
+        <div class="section-body">
+            {% if categories %}
+            <div class="filter-bar" data-gallery-filters>
+                <button type="button" class="filter-chip active" data-filter="all">All</button>
+                {% for category in categories %}
+                <button type="button" class="filter-chip" data-filter="{{ category.slug }}">{{ category.name }}</button>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="gallery-grid gallery-grid--full" data-gallery>
+                {% for image in images %}
+                <div class="gallery-item" data-category="{{ image.category.slug|default:'' }}">
+                    <img src="{{ image.image.url }}" alt="{{ image.title|default:'Club photo' }}">
+                    {% if image.caption %}<span class="gallery-caption">{{ image.caption }}</span>{% endif %}
+                </div>
+                {% empty %}
+                <p class="empty-state">No photos added yet. Upload some from the Django admin.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>

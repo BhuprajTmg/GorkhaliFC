@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 
 from .models import ClubInfo, ContactMessage, GalleryCategory, GalleryImage, Match, Player
 
@@ -11,6 +12,7 @@ class ClubInfoAdmin(admin.ModelAdmin):
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
     list_display = (
+        "photo_thumbnail",
         "name",
         "position",
         "jersey_number",
@@ -22,6 +24,29 @@ class PlayerAdmin(admin.ModelAdmin):
     list_filter = ("position", "is_active", "is_captain")
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+    readonly_fields = ("photo_preview",)
+    fieldsets = (
+        (None, {"fields": ("name", "slug", "position", "jersey_number", "is_captain", "is_active", "order")}),
+        ("Photo", {"fields": ("photo", "photo_preview")}),
+        ("Bio", {"fields": ("bio", "date_of_birth")}),
+    )
+
+    @admin.display(description="Photo")
+    def photo_thumbnail(self, obj):
+        if obj.photo:
+            return format_html(
+                '<img src="{}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">',
+                obj.photo.url,
+            )
+        return "—"
+
+    @admin.display(description="Photo preview")
+    def photo_preview(self, obj):
+        if obj.photo:
+            return format_html(
+                '<img src="{}" style="max-width:220px;border-radius:10px;">', obj.photo.url
+            )
+        return "No photo uploaded yet."
 
 
 @admin.register(GalleryCategory)

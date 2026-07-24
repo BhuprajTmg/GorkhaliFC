@@ -1,0 +1,35 @@
+<section class="hero" id="home">
+    <div class="container hero-inner">
+        {% if club.logo %}
+            <img src="{{ club.logo.url }}" alt="{{ club.name }} logo" class="hero-logo">
+        {% else %}
+            <span class="hero-logo hero-logo--placeholder">GFC</span>
+        {% endif %}
+        <h1 class="hero-title">{{ club.name|default:"Gurkhali FC" }}</h1>
+        <p class="hero-location">{{ club.location|default:"Darwin, Northern Territory"|upper }} &bull; EST. {{ club.founded_year|default:"2023" }}</p>
+        <p class="hero-tagline">{{ club.tagline|default:"Himalayan Hearts &bull; Top End Spirits" }}</p>
+        <div class="hero-actions">
+            <a class="btn btn-primary" href="#players">Meet the Squad</a>
+            <a class="btn btn-ghost" href="#schedule">View Schedule</a>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="mini-stats">
+            <div class="mini-stat">
+                <span class="mini-stat-number">{{ club.founded_year|default:"2023" }}</span>
+                <span class="mini-stat-label">Founded</span>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-stat-number">{{ players_count }}+</span>
+                <span class="mini-stat-label">Players</span>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-stat-number">1</span>
+                <span class="mini-stat-label">Family</span>
+            </div>
+        </div>
+    </div>
+</section>
