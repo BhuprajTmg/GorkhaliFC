@@ -145,3 +145,52 @@ class ContactMessage(models.Model):
 
     def __str__(self):
         return f"{self.name} <{self.email}>"
+
+
+class TeamRegistration(models.Model):
+    """A team signing up to play in a tournament the club is hosting/running.
+    Submitted via the public "Register" section of the site; reviewed and
+    actioned (approved/rejected) from the admin.
+    """
+
+    class Division(models.TextChoices):
+        OPEN_MENS = "OPEN_M", "Open / Men's"
+        WOMENS = "WOMENS", "Women's"
+        MIXED = "MIXED", "Mixed"
+        YOUTH = "YOUTH", "Youth / Junior"
+        MASTERS = "MASTERS", "Masters (35+)"
+        CORPORATE = "CORP", "Corporate / Social"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending review"
+        APPROVED = "APPROVED", "Approved"
+        WAITLISTED = "WAITLIST", "Waitlisted"
+        REJECTED = "REJECTED", "Rejected"
+
+    tournament_name = models.CharField(
+        max_length=150,
+        help_text='Which tournament the team is registering for, e.g. "Gurkhali Cup 2026".',
+    )
+    team_name = models.CharField(max_length=120)
+    division = models.CharField(max_length=10, choices=Division.choices, default=Division.OPEN_MENS)
+    manager_name = models.CharField(max_length=120, help_text="Team manager or coach's full name.")
+    phone = models.CharField(max_length=30)
+    email = models.EmailField()
+    player_count = models.PositiveSmallIntegerField(help_text="Estimated number of players in the squad.")
+    home_city = models.CharField(max_length=120, blank=True)
+    experience = models.TextField(
+        blank=True, help_text="Previous tournament experience, if any (optional)."
+    )
+    notes = models.TextField(blank=True, help_text="Anything else the organisers should know (optional).")
+    agreed_to_rules = models.BooleanField(
+        default=False,
+        help_text="Team confirmed they agree to the tournament rules and code of conduct.",
+    )
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-submitted_at"]
+
+    def __str__(self):
+        return f"{self.team_name} — {self.tournament_name}"

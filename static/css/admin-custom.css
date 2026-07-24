@@ -1,0 +1,116 @@
+/* -------------------------------------------------------
+   Gurkhali FC — Django admin theme
+   Re-colors the stock Django admin (which is built on CSS custom
+   properties) to match the club's navy / gold / crimson brand instead of
+   the default blue, without touching any admin templates/structure.
+   ------------------------------------------------------- */
+
+:root,
+html[data-theme="light"] {
+  --primary: #123a7a;
+  --secondary: #0b2c60;
+  --accent: #eab53c;
+  --primary-fg: #fff;
+
+  --header-color: #f4f1e6;
+  --header-branding-color: var(--accent);
+  --header-bg: var(--secondary);
+  --header-link-color: #fff;
+
+  --breadcrumbs-fg: #d7deec;
+  --breadcrumbs-link-fg: #fff;
+  --breadcrumbs-bg: var(--primary);
+
+  --link-fg: #b3122a;
+  --link-hover-color: #8a0e20;
+  --link-selected-fg: var(--primary);
+
+  --button-fg: #fff;
+  --button-bg: #b3122a;
+  --button-hover-bg: #8a0e20;
+  --default-button-bg: var(--secondary);
+  --default-button-hover-bg: var(--primary);
+  --close-button-bg: #6b7280;
+  --close-button-hover-bg: #4b5563;
+  --delete-button-bg: #b3122a;
+  --delete-button-hover-bg: #8a0e20;
+
+  --object-tools-bg: var(--close-button-bg);
+  --object-tools-hover-bg: var(--close-button-hover-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #16233c;
+    --secondary: #101d33;
+    --accent: #eab53c;
+    --primary-fg: #f4f1e6;
+
+    --body-bg: #0a1120;
+    --body-fg: #f4f1e6;
+    --body-quiet-color: #9aa7be;
+    --body-medium-color: #c7cfdd;
+    --body-loud-color: #ffffff;
+
+    --header-color: #f4f1e6;
+    --header-branding-color: var(--accent);
+    --header-bg: #0a1120;
+
+    --breadcrumbs-bg: var(--primary);
+
+    --link-fg: #eab53c;
+    --link-hover-color: #f2c25a;
+    --link-selected-fg: var(--accent);
+
+    --hairline-color: #22304a;
+    --border-color: #2a3a58;
+
+    --button-bg: #d81e3f;
+    --button-hover-bg: #9c1530;
+    --default-button-bg: var(--secondary);
+    --default-button-hover-bg: var(--primary);
+    --delete-button-bg: #d81e3f;
+    --delete-button-hover-bg: #9c1530;
+
+    --darkened-bg: #101d33;
+    --selected-bg: #16233c;
+    --selected-row: #1c2c49;
+  }
+}
+
+/* Small structural polish on top of the recolored variables. */
+#header {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+#branding h1 {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+div.breadcrumbs {
+  font-weight: 500;
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+  border-radius: 6px 6px 0 0;
+}
+
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input,
+a.button {
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.object-tools a.addlink {
+  border-radius: 6px;
+}
+
+.dashboard .module table th {
+  width: auto;
+}
