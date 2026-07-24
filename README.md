@@ -24,8 +24,9 @@ with the nav bar linking to in-page sections via anchors
   scores).
 - **Register** — a tournament team registration form (team name, division,
   manager/coach contact, estimated player count, etc.). Submissions are
-  saved to the database, emailed to the club, and manageable (approve /
-  waitlist / reject) from the admin.
+  saved to the database, emailed to the club with a Word (`.docx`)
+  summary attached, and manageable (approve / waitlist / reject) from
+  the admin.
 - **Photos** — gallery with category filters (Matches, Team Photos,
   Training, ...) filtered instantly with JS, no page reload.
 - **Contact** — club contact details, social links, and a working contact
@@ -97,10 +98,14 @@ Submitting the Contact form or the tournament Register form always saves
 the message/registration to the database (visible in the admin either
 way), and additionally tries to **email the club** at whatever address is
 set in **Club Info → Email** (falls back to `CONTACT_NOTIFICATION_EMAIL` if
-Club Info has no email set).
+Club Info has no email set). Registration emails also attach a Word
+(`.docx`) document summarising the team's details.
 
 **Without any setup**, that email is just printed to your terminal/console
-— nothing breaks, but no real email is sent. To send real emails:
+window (look for lines starting with `[club.emails] ...`) — nothing
+breaks, but no real email is sent, which is why "the form works but I
+never receive an email" usually means this hasn't been set up yet. To
+send real emails:
 
 1. Copy `.env.example` to a new file named `.env` in the project root (same
    folder as `manage.py`).
@@ -127,6 +132,40 @@ secrets in the Cursor Dashboard (Cloud Agents → Secrets) instead of a
 `.env` file — they'll be injected the same way.
 
 `.env` is git-ignored, so your credentials never get committed.
+
+### Troubleshooting "I'm not receiving emails"
+
+1. **Check the terminal running `python manage.py runserver`** right after
+   submitting a form. Any send attempt prints a line there:
+   - `[club.emails] Email sent to ...` — it was sent successfully by
+     whatever backend is configured. If you still don't see it in your
+     inbox, check **Spam/Junk**, and double-check the address set on
+     **Club Info → Email** in the admin is correct.
+   - `[club.emails] Failed to send email to ...` followed by the real
+     error (e.g. an SMTP authentication error) — this tells you exactly
+     what's wrong (usually: wrong/missing App Password, or `.env` not
+     picked up because the server wasn't restarted after creating it).
+   - Nothing printed at all — the request likely didn't reach the view
+     (e.g. the migration error covered below), or **Club Info → Email**
+     is empty and `CONTACT_NOTIFICATION_EMAIL` isn't set either.
+2. Make sure you restarted `runserver` after creating/editing `.env` —
+   Django only reads it once, on startup.
+3. Run `python manage.py migrate` after every `git pull` — a missing
+   migration causes a database error before the email code even runs.
+
+### "OperationalError: no such table: club_teamregistration" (or similar)
+
+This means the database is missing a table for a model that was added
+after your last `python manage.py migrate`. Fix:
+
+```bash
+pip install -r requirements.txt   # in case a new package was added too
+python manage.py migrate
+```
+
+Do this after every `git pull` — new features in this project sometimes
+come with new database migrations and/or new packages in
+`requirements.txt`, and Git doesn't apply either of those for you.
 
 ## Adding player photos & descriptions
 
