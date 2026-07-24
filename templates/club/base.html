@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ club.name|default:"Gurkhali FC" }} &ndash; {{ club.tagline|default:"Himalayan Hearts, Top End Spirits" }}{% endblock %}</title>
+    <meta name="description" content="Official website of {{ club.name|default:'Gurkhali FC' }}.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{% url 'club:home' %}">
+                {% if club.logo %}
+                    <img src="{{ club.logo.url }}" alt="{{ club.name }} logo" class="brand-logo">
+                {% else %}
+                    <span class="brand-logo brand-logo--placeholder">GFC</span>
+                {% endif %}
+                <span class="brand-text">
+                    <span class="brand-name">{{ club.name|default:"Gurkhali FC" }}</span>
+                    <span class="brand-sub">Est. {{ club.founded_year|default:"2023" }} &middot; {{ club.location|default:"Darwin, AU"|truncatechars:16 }}</span>
+                </span>
+            </a>
+            <input type="checkbox" id="nav-toggle" class="nav-toggle">
+            <label for="nav-toggle" class="nav-burger" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </label>
+            <nav class="main-nav">
+                <a href="{% url 'club:home' %}">Home</a>
+                <a href="{% url 'club:about' %}">About</a>
+                <a href="{% url 'club:players' %}">Players</a>
+                <a href="{% url 'club:schedule' %}">Schedule</a>
+                <a href="{% url 'club:photos' %}">Photos</a>
+                <a href="{% url 'club:contact' %}">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        {% if messages %}
+        <div class="container">
+            {% for message in messages %}
+            <p class="flash-message">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div class="footer-brand">
+                <span class="brand-name">{{ club.name|default:"Gurkhali FC" }}</span>
+                <p>{{ club.tagline|default:"Himalayan Hearts, Top End Spirits" }}</p>
+            </div>
+            <div class="footer-contact">
+                {% if club.location %}<p>{{ club.location }}</p>{% endif %}
+                {% if club.email %}<p><a href="mailto:{{ club.email }}">{{ club.email }}</a></p>{% endif %}
+                {% if club.phone %}<p>{{ club.phone }}</p>{% endif %}
+            </div>
+            <div class="footer-social">
+                {% if club.facebook_url %}<a href="{{ club.facebook_url }}" target="_blank" rel="noopener">Facebook</a>{% endif %}
+                {% if club.instagram_url %}<a href="{{ club.instagram_url }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+                {% if club.youtube_url %}<a href="{{ club.youtube_url }}" target="_blank" rel="noopener">YouTube</a>{% endif %}
+            </div>
+        </div>
+        <p class="footer-copy">&copy; {% now "Y" %} {{ club.name|default:"Gurkhali FC" }}. All rights reserved.</p>
+    </footer>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

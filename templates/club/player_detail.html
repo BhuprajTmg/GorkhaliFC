@@ -1,0 +1,28 @@
+{% extends "club/base.html" %}
+
+{% block title %}{{ player.name }} &middot; {{ club.name|default:"Gurkhali FC" }}{% endblock %}
+
+{% block content %}
+<section class="section player-detail">
+    <div class="container player-detail-inner">
+        <div class="player-detail-photo">
+            {% if player.photo %}
+                <img src="{{ player.photo.url }}" alt="{{ player.name }}">
+            {% else %}
+                <span class="player-photo-placeholder player-photo-placeholder--large">{{ player.name|slice:":1" }}</span>
+            {% endif %}
+        </div>
+        <div class="player-detail-info">
+            <a class="link-arrow" href="{% url 'club:players' %}">&larr; Back to squad</a>
+            <h1>{{ player.name }}{% if player.is_captain %} <span class="captain-badge captain-badge--inline">Captain</span>{% endif %}</h1>
+            <p class="player-detail-position">{{ player.get_position_display }}{% if player.jersey_number %} &middot; #{{ player.jersey_number }}{% endif %}</p>
+            {% if player.date_of_birth %}<p class="player-detail-dob">Born {{ player.date_of_birth }}</p>{% endif %}
+            {% if player.bio %}
+                <div class="player-bio">{{ player.bio|linebreaks }}</div>
+            {% else %}
+                <p class="empty-state">No bio added yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

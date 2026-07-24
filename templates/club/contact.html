@@ -1,0 +1,64 @@
+{% extends "club/base.html" %}
+
+{% block title %}Contact &middot; {{ club.name|default:"Gurkhali FC" }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <p class="eyebrow">Get in Touch</p>
+        <h1>Contact <span class="text-accent">Us</span></h1>
+        <span class="accent-underline"></span>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container contact-grid">
+        <div class="contact-info">
+            <div class="contact-item">
+                <span class="contact-icon">📍</span>
+                <div>
+                    <strong>Location</strong>
+                    <p>{{ club.location|default:"Darwin, Northern Territory, Australia" }}</p>
+                </div>
+            </div>
+            <div class="contact-item">
+                <span class="contact-icon">✉️</span>
+                <div>
+                    <strong>Email</strong>
+                    <p>{{ club.email|default:"info@gurkhalifc.com.au" }}</p>
+                </div>
+            </div>
+            <div class="contact-item">
+                <span class="contact-icon">🏉</span>
+                <div>
+                    <strong>Founded</strong>
+                    <p>{{ club.founded_year|default:"2023" }} &middot; Representing the Nepali-Australian community</p>
+                </div>
+            </div>
+            <div class="contact-social">
+                {% if club.facebook_url %}<a class="social-btn" href="{{ club.facebook_url }}" target="_blank" rel="noopener">Facebook</a>{% else %}<span class="social-btn social-btn--disabled">Facebook</span>{% endif %}
+                {% if club.instagram_url %}<a class="social-btn" href="{{ club.instagram_url }}" target="_blank" rel="noopener">Instagram</a>{% else %}<span class="social-btn social-btn--disabled">Instagram</span>{% endif %}
+                {% if club.youtube_url %}<a class="social-btn" href="{{ club.youtube_url }}" target="_blank" rel="noopener">YouTube</a>{% else %}<span class="social-btn social-btn--disabled">YouTube</span>{% endif %}
+            </div>
+            <p class="contact-hint">Update social links and contact details anytime from the Django admin.</p>
+        </div>
+
+        <form class="contact-form" method="post">
+            {% csrf_token %}
+            <label>
+                Your Name
+                {{ form.name }}
+            </label>
+            <label>
+                Email Address
+                {{ form.email }}
+            </label>
+            <label>
+                Message
+                {{ form.message }}
+            </label>
+            <button type="submit" class="btn btn-primary">Send Message</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

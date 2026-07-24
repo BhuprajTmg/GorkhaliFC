@@ -1,0 +1,42 @@
+{% extends "club/base.html" %}
+
+{% block title %}Players &middot; {{ club.name|default:"Gurkhali FC" }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <p class="eyebrow">The Squad</p>
+        <h1>Meet the <span class="text-accent">Warriors</span></h1>
+        <span class="accent-underline"></span>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        {% for group in grouped_players %}
+        <div class="player-group">
+            <h2 class="player-group-title">{{ group.label }}s</h2>
+            <div class="player-grid">
+                {% for player in group.players %}
+                <a class="player-card" href="{{ player.get_absolute_url }}">
+                    <div class="player-photo">
+                        {% if player.photo %}
+                            <img src="{{ player.photo.url }}" alt="{{ player.name }}">
+                        {% else %}
+                            <span class="player-photo-placeholder">{{ player.name|slice:":1" }}</span>
+                        {% endif %}
+                        {% if player.jersey_number %}<span class="jersey-badge">{{ player.jersey_number }}</span>{% endif %}
+                        {% if player.is_captain %}<span class="captain-badge">C</span>{% endif %}
+                    </div>
+                    <h3>{{ player.name }}</h3>
+                    <p>{{ player.get_position_display }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% empty %}
+        <p class="empty-state">No players added yet. Add players from the Django admin.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

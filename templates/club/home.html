@@ -1,0 +1,83 @@
+{% extends "club/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="hero">
+    <div class="container hero-inner">
+        {% if club.logo %}
+            <img src="{{ club.logo.url }}" alt="{{ club.name }} logo" class="hero-logo">
+        {% else %}
+            <span class="hero-logo hero-logo--placeholder">GFC</span>
+        {% endif %}
+        <h1 class="hero-title">{{ club.name|default:"Gurkhali FC" }}</h1>
+        <p class="hero-location">{{ club.location|default:"Darwin, Northern Territory"|upper }} &bull; EST. {{ club.founded_year|default:"2023" }}</p>
+        <p class="hero-tagline">{{ club.tagline|default:"Himalayan Hearts &bull; Top End Spirits" }}</p>
+        <div class="hero-actions">
+            <a class="btn btn-primary" href="{% url 'club:players' %}">Meet the Squad</a>
+            <a class="btn btn-ghost" href="{% url 'club:schedule' %}">View Schedule</a>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="mini-stats">
+            <div class="mini-stat">
+                <span class="mini-stat-number">{{ club.founded_year|default:"2023" }}</span>
+                <span class="mini-stat-label">Founded</span>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-stat-number">{{ players_count }}+</span>
+                <span class="mini-stat-label">Players</span>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-stat-number">1</span>
+                <span class="mini-stat-label">Family</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if next_match %}
+<section class="section section-alt">
+    <div class="container">
+        <div class="section-header">
+            <h2>Next Match</h2>
+            <a class="link-arrow" href="{% url 'club:schedule' %}">Full schedule &rarr;</a>
+        </div>
+        <div class="match-row match-row--featured">
+            <div class="match-date {% if next_match.is_home %}match-date--home{% endif %}">
+                <span class="match-date-month">{{ next_match.match_date|date:"M" }}</span>
+                <span class="match-date-day">{{ next_match.match_date|date:"d" }}</span>
+                <span class="match-date-year">{{ next_match.match_date|date:"Y" }}</span>
+            </div>
+            <div class="match-info">
+                <h3>{{ club.name|default:"Gurkhali FC" }} vs {{ next_match.opponent }}</h3>
+                <p>{% if next_match.venue %}{{ next_match.venue }} &bull; {% endif %}{% if next_match.match_time %}{{ next_match.match_time|time:"g:i A" }}{% endif %}</p>
+            </div>
+            <span class="match-tag {% if next_match.is_home %}match-tag--home{% else %}match-tag--away{% endif %}">
+                {% if next_match.is_home %}HOME{% else %}AWAY{% endif %}
+            </span>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if gallery_preview %}
+<section class="section">
+    <div class="container">
+        <div class="section-header">
+            <h2>Gallery</h2>
+            <a class="link-arrow" href="{% url 'club:photos' %}">See all photos &rarr;</a>
+        </div>
+        <div class="gallery-grid">
+            {% for image in gallery_preview %}
+            <div class="gallery-item">
+                <img src="{{ image.image.url }}" alt="{{ image.title|default:'Club photo' }}">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
