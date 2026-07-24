@@ -11,17 +11,19 @@
                 <div class="player-grid">
                     {% for player in group.players %}
                     <a class="player-card" href="{{ player.get_absolute_url }}">
-                        <div class="player-photo">
+                        <div class="player-card-photo">
                             {% if player.photo %}
                                 <img src="{{ player.photo.url }}" alt="{{ player.name }}">
                             {% else %}
-                                <span class="player-photo-placeholder">{{ player.name|slice:":1" }}</span>
+                                <span class="player-card-avatar">{{ player.name|slice:":1" }}</span>
                             {% endif %}
                             {% if player.jersey_number %}<span class="jersey-badge">{{ player.jersey_number }}</span>{% endif %}
                             {% if player.is_captain %}<span class="captain-badge">C</span>{% endif %}
                         </div>
-                        <h4>{{ player.name }}</h4>
-                        <p>{{ player.get_position_display }}</p>
+                        <div class="player-card-info">
+                            <h4>{{ player.name }}</h4>
+                            <p>{{ player.get_position_display }}</p>
+                        </div>
                     </a>
                     {% endfor %}
                 </div>
