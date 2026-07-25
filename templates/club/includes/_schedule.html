@@ -6,16 +6,17 @@
 
         <div class="section-body">
             {% if competition_group and group_standings %}
-            <div class="group-table-block" id="table">
-                <div class="group-table-header">
-                    <h3 class="schedule-subtitle group-table-title">
-                        {{ competition_group.name }}
+            <div class="group-standings" id="table">
+                <div class="group-standings-banner">
+                    <div class="group-standings-banner-text">
+                        <p class="group-standings-kicker">Group standings</p>
+                        <h3 class="group-standings-name">{{ competition_group.name }}</h3>
                         {% if competition_group.season %}
-                        <span class="group-table-season">{{ competition_group.season }}</span>
+                        <p class="group-standings-season">{{ competition_group.season }}</p>
                         {% endif %}
-                    </h3>
-                    <p class="group-table-legend">
-                        <span class="group-qualify-swatch" aria-hidden="true"></span>
+                    </div>
+                    <p class="group-standings-legend">
+                        <span class="group-qualify-mark" aria-hidden="true"></span>
                         Top 2 advance
                     </p>
                 </div>
@@ -33,16 +34,20 @@
                                 <th scope="col" title="Goals for">GF</th>
                                 <th scope="col" title="Goals against">GA</th>
                                 <th scope="col" title="Goal difference">GD</th>
-                                <th scope="col" title="Points">Pts</th>
+                                <th scope="col" class="col-pts" title="Points">Pts</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in group_standings %}
                             <tr class="{% if row.position <= 2 %}group-row--qualify{% endif %}{% if row.team.is_club %} group-row--club{% endif %}">
-                                <td class="col-pos">{{ row.position }}</td>
+                                <td class="col-pos">
+                                    <span class="group-pos group-pos--{{ row.position }}">{{ row.position }}</span>
+                                </td>
                                 <td class="col-team">
-                                    {{ row.team.name }}
-                                    {% if row.team.is_club %}<span class="group-club-tag">us</span>{% endif %}
+                                    <span class="group-team-name">{{ row.team.name }}</span>
+                                    {% if row.team.is_club %}
+                                    <span class="group-club-mark">Gurkhali</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ row.team.played }}</td>
                                 <td>{{ row.team.won }}</td>
@@ -50,8 +55,8 @@
                                 <td>{{ row.team.lost }}</td>
                                 <td>{{ row.team.goals_for }}</td>
                                 <td>{{ row.team.goals_against }}</td>
-                                <td>{% if row.team.goal_difference > 0 %}+{% endif %}{{ row.team.goal_difference }}</td>
-                                <td class="col-pts">{{ row.team.points }}</td>
+                                <td class="col-gd">{% if row.team.goal_difference > 0 %}+{% endif %}{{ row.team.goal_difference }}</td>
+                                <td class="col-pts"><span class="group-pts">{{ row.team.points }}</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
