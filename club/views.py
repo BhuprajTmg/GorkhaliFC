@@ -3,7 +3,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .emails import send_contact_notification, send_registration_notification
 from .forms import ContactForm, RegisteredPlayerFormSet, TeamRegistrationForm
-from .models import ClubInfo, GalleryCategory, GalleryImage, Match, Player, TeamRegistration
+from .models import (
+    ClubInfo,
+    CompetitionGroup,
+    GalleryCategory,
+    GalleryImage,
+    Match,
+    Player,
+    TeamRegistration,
+)
 
 
 def home(request):
@@ -79,6 +87,14 @@ def home(request):
     upcoming_matches = scheduled_matches[1:] if next_match else []
     past_matches = Match.objects.filter(status=Match.Status.FINISHED).order_by("-match_date")
 
+    # World Cup–format group table (four teams). Show the first active group.
+    competition_group = (
+        CompetitionGroup.objects.filter(is_active=True)
+        .prefetch_related("teams")
+        .first()
+    )
+    group_standings = competition_group.standings() if competition_group else []
+
     context = {
         "club": club,
         "players_count": active_players.count(),
@@ -87,6 +103,8 @@ def home(request):
         "next_match": next_match,
         "upcoming_matches": upcoming_matches,
         "past_matches": past_matches,
+        "competition_group": competition_group,
+        "group_standings": group_standings,
         "categories": GalleryCategory.objects.all(),
         "images": GalleryImage.objects.all(),
         "form": contact_form,

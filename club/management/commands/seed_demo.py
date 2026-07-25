@@ -3,7 +3,14 @@ import datetime
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 
-from club.models import ClubInfo, GalleryCategory, Match, Player
+from club.models import (
+    ClubInfo,
+    CompetitionGroup,
+    GalleryCategory,
+    GroupTeam,
+    Match,
+    Player,
+)
 
 
 class Command(BaseCommand):
@@ -93,5 +100,41 @@ class Command(BaseCommand):
             )
             status = "created" if created else "already existed"
             self.stdout.write(f"Fixture vs {opponent}: {status}")
+
+        # World Cup–format group of four (standings editable in admin).
+        group, group_created = CompetitionGroup.objects.get_or_create(
+            name="Group A",
+            defaults={
+                "season": "Darwin Cup 2026",
+                "is_active": True,
+            },
+        )
+        self.stdout.write(
+            f"Competition group {group.name}: "
+            f"{'created' if group_created else 'already existed'}"
+        )
+        group_teams = [
+            # name, is_club, P, W, D, L, GF, GA
+            ("Gurkhali FC", True, 3, 2, 1, 0, 7, 2),
+            ("Darwin FC", False, 3, 2, 0, 1, 5, 3),
+            ("Casuarina SC", False, 3, 1, 0, 2, 3, 5),
+            ("Palmerston FC", False, 3, 0, 1, 2, 2, 7),
+        ]
+        for name, is_club, played, won, drawn, lost, gf, ga in group_teams:
+            team, created = GroupTeam.objects.get_or_create(
+                group=group,
+                name=name,
+                defaults={
+                    "is_club": is_club,
+                    "played": played,
+                    "won": won,
+                    "drawn": drawn,
+                    "lost": lost,
+                    "goals_for": gf,
+                    "goals_against": ga,
+                },
+            )
+            status = "created" if created else "already existed"
+            self.stdout.write(f"Group team {team.name}: {status}")
 
         self.stdout.write(self.style.SUCCESS("Seed complete."))

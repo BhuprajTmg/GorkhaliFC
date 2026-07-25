@@ -3,9 +3,11 @@ from django.utils.html import format_html
 
 from .models import (
     ClubInfo,
+    CompetitionGroup,
     ContactMessage,
     GalleryCategory,
     GalleryImage,
+    GroupTeam,
     Match,
     Player,
     RegisteredPlayer,
@@ -90,6 +92,34 @@ class MatchAdmin(admin.ModelAdmin):
     list_editable = ("status", "home_score", "away_score")
     list_filter = ("status", "is_home")
     date_hierarchy = "match_date"
+
+
+class GroupTeamInline(admin.TabularInline):
+    model = GroupTeam
+    extra = 4
+    max_num = 4
+    fields = (
+        "name",
+        "is_club",
+        "played",
+        "won",
+        "drawn",
+        "lost",
+        "goals_for",
+        "goals_against",
+    )
+
+
+@admin.register(CompetitionGroup)
+class CompetitionGroupAdmin(admin.ModelAdmin):
+    list_display = ("name", "season", "is_active", "team_count")
+    list_editable = ("is_active",)
+    list_filter = ("is_active",)
+    inlines = [GroupTeamInline]
+
+    @admin.display(description="Teams")
+    def team_count(self, obj):
+        return obj.teams.count()
 
 
 @admin.register(ContactMessage)

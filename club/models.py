@@ -163,6 +163,78 @@ class ContactMessage(models.Model):
         return f"{self.name} <{self.email}>"
 
 
+class CompetitionGroup(models.Model):
+    """A World Cup–style group of four teams (e.g. Group A).
+
+    Standings are entered on each GroupTeam and ranked like FIFA group tables:
+    points → goal difference → goals for → team name.
+    """
+
+    name = models.CharField(max_length=80, help_text='e.g. "Group A".')
+    season = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text='Optional label, e.g. "Darwin Cup 2026".',
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Only the active group is shown on the public schedule.",
+    )
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        if self.season:
+            return f"{self.name} — {self.season}"
+        return self.name
+
+    def standings(self):
+        """Return group teams sorted World Cup / FIFA style with position."""
+        teams = list(self.teams.all())
+        teams.sort(
+            key=lambda t: (-t.points, -t.goal_difference, -t.goals_for, t.name.lower())
+        )
+        rows = []
+        for index, team in enumerate(teams, start=1):
+            rows.append({"position": index, "team": team})
+        return rows
+
+
+class GroupTeam(models.Model):
+    """One of up to four teams in a CompetitionGroup, with WC-table stats."""
+
+    group = models.ForeignKey(
+        CompetitionGroup, related_name="teams", on_delete=models.CASCADE
+    )
+    name = models.CharField(max_length=120)
+    is_club = models.BooleanField(
+        default=False,
+        help_text="Highlight this row as Gurkhali FC on the public table.",
+    )
+    played = models.PositiveSmallIntegerField(default=0)
+    won = models.PositiveSmallIntegerField(default=0)
+    drawn = models.PositiveSmallIntegerField(default=0)
+    lost = models.PositiveSmallIntegerField(default=0)
+    goals_for = models.PositiveSmallIntegerField(default=0)
+    goals_against = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = [("group", "name")]
+
+    def __str__(self):
+        return f"{self.name} ({self.group.name})"
+
+    @property
+    def points(self):
+        return self.won * 3 + self.drawn
+
+    @property
+    def goal_difference(self):
+        return self.goals_for - self.goals_against
+
+
 # Fixed squad size for the tournament registration roster — the form shows
 # exactly this many Name / Jersey Number slots (no "add player" button).
 # Change this single constant to resize the roster everywhere (form, admin,

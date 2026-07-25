@@ -958,6 +958,173 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   font-style: italic;
 }
 
+/* ---------- World Cup–format group table ---------- */
+
+.group-table-block {
+  margin-bottom: 40px;
+}
+
+.group-table-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 12px;
+}
+
+.group-table-title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-ink);
+}
+
+.group-table-season {
+  margin-left: 10px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  color: var(--color-ink-soft);
+  font-size: 0.85rem;
+}
+
+.group-table-legend {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-qualify-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  border-left: 3px solid var(--color-accent);
+  flex-shrink: 0;
+}
+
+.group-table-wrap {
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+  border-radius: 4px;
+  background: var(--color-bg-alt);
+}
+
+.group-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+  font-size: 0.92rem;
+}
+
+.group-table thead th {
+  background: #0b1f3a;
+  color: #f5f0e6;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 12px 10px;
+  text-align: center;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.group-table thead th.col-team {
+  text-align: left;
+  padding-left: 16px;
+}
+
+.group-table tbody td {
+  padding: 12px 10px;
+  text-align: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+  color: var(--color-ink);
+}
+
+.group-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.group-table td.col-pos {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--color-ink-soft);
+  width: 48px;
+}
+
+.group-table td.col-team {
+  text-align: left;
+  padding-left: 16px;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  letter-spacing: 0.3px;
+}
+
+.group-table td.col-pts {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--color-accent);
+  font-size: 1.05rem;
+}
+
+/* FIFA-style qualification zone: top 2 rows */
+.group-table tbody tr.group-row--qualify td {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.group-table tbody tr.group-row--qualify td.col-pos {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Highlight Gurkhali FC */
+.group-table tbody tr.group-row--club td {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-alt));
+}
+
+.group-table tbody tr.group-row--club.group-row--qualify td {
+  background: color-mix(
+    in srgb,
+    var(--color-primary) 10%,
+    color-mix(in srgb, var(--color-accent) 12%, transparent)
+  );
+}
+
+.group-club-tag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  vertical-align: middle;
+}
+
+@media (max-width: 640px) {
+  .group-table {
+    font-size: 0.85rem;
+  }
+
+  .group-table thead th,
+  .group-table tbody td {
+    padding: 10px 6px;
+  }
+
+  .group-table thead th.col-team,
+  .group-table td.col-team {
+    padding-left: 10px;
+  }
+}
+
 /* ---------- Tournament registration ---------- */
 
 .register-cta-section {

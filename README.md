@@ -29,6 +29,9 @@ with the nav bar linking to in-page sections via anchors
     by the rest of the upcoming fixtures.
   - Matches marked **Finished** show under "Results" with their final
     score.
+  - A World Cup–format **group table** of four teams (Pos, Pld, W, D, L,
+    GF, GA, GD, Pts) with top-2 qualification shading — edit teams and
+    stats under **Competition groups** in the admin.
 - **Register** — a "Register Your Team" button that opens a floating,
   semi-transparent form overlay (doesn't take up space on the page until
   clicked) with: team name, division, manager/coach contact, plus a
@@ -226,6 +229,11 @@ Everything editable lives in the Django admin (`/admin/`):
   show it at the top of the schedule with a pulsing live indicator —
   update the score fields as the match progresses, then set Status to
   "Finished" afterwards to move it into Results.
+- **Competition groups** — World Cup–style group of up to four teams.
+  Enter played / W / D / L / GF / GA for each team; the public table
+  ranks by points → goal difference → goals for. Tick **Is club** on
+  Gurkhali FC to highlight that row, and **Is active** on the group you
+  want shown on the site.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section
