@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .forms import MatchAdminForm
+from .forms import GroupTeamAdminForm, MatchAdminForm
 from .models import (
     ClubInfo,
     CompetitionGroup,
@@ -103,10 +103,9 @@ class MatchAdmin(admin.ModelAdmin):
             {
                 "fields": ("home_team", "away_team", "group"),
                 "description": (
-                    "Home and Away are filled from Approved team registrations "
-                    "only (pending / waitlisted / rejected teams are hidden). "
-                    "After the lucky draw, pick the Group so the result updates "
-                    "that World Cup table — team names should match the group."
+                    "Home and Away come from Approved registrations only. "
+                    "After the lucky draw, pick the Group — both teams are "
+                    "added to that group's table automatically if needed."
                 ),
             },
         ),
@@ -130,6 +129,7 @@ class MatchAdmin(admin.ModelAdmin):
 
 class GroupTeamInline(admin.TabularInline):
     model = GroupTeam
+    form = GroupTeamAdminForm
     extra = 4
     max_num = 4
     fields = (

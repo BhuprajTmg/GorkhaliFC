@@ -139,7 +139,7 @@ class Match(models.Model):
         blank=True,
         null=True,
         help_text="Which World Cup group table this result updates. "
-        "Both team names should exist in that group.",
+        "Both teams are added to the group automatically when you save.",
     )
     match_date = models.DateField()
     match_time = models.TimeField(blank=True, null=True)
@@ -209,19 +209,8 @@ class Match(models.Model):
             if self.away_score is None:
                 errors["away_score"] = "Enter the away score before finishing."
 
-        if self.group_id and self.home_team and self.away_team:
-            names = {
-                n.strip().lower()
-                for n in self.group.teams.values_list("name", flat=True)
-            }
-            if self.home_team.strip().lower() not in names:
-                errors["home_team"] = (
-                    f'"{self.home_team}" is not in {self.group.name}.'
-                )
-            if self.away_team.strip().lower() not in names:
-                errors["away_team"] = (
-                    f'"{self.away_team}" is not in {self.group.name}.'
-                )
+        # Teams no longer need to be pre-added to the group — saving a match
+        # with a Group selected will add them automatically (lucky-draw flow).
 
         if errors:
             raise ValidationError(errors)
@@ -252,15 +241,27 @@ class Match(models.Model):
         else:
             self.finished_at = None
 
-        # Auto-attach the group when both teams sit in the same one.
+        # Auto-attach the group when both teams already sit in the same one.
         if not self.group_id and self.home_team and self.away_team:
             self.group = self._detect_shared_group()
 
         super().save(*args, **kwargs)
 
+        # After lucky draw: picking a Group on the fixture places both teams
+        # into that group's table automatically (using the registration names).
+        if self.group_id:
+            self._ensure_teams_in_group()
+
         from .standings import sync_standings_after_match
 
         sync_standings_after_match(self)
+
+    def _ensure_teams_in_group(self):
+        if not self.group_id:
+            return
+        for team_name in (self.home_team, self.away_team):
+            if team_name and team_name.strip():
+                self.group.ensure_team(team_name.strip())
 
     def _detect_shared_group(self):
         home_groups = set(
@@ -329,6 +330,25 @@ class CompetitionGroup(models.Model):
         for index, team in enumerate(teams, start=1):
             rows.append({"position": index, "team": team})
         return rows
+
+    def ensure_team(self, team_name):
+        """Add an approved/registered team name to this group if missing.
+
+        Case-insensitive match reuses an existing row so "Chillax 1" won't
+        duplicate "Chillax-1" if that spelling is already in the group —
+        but new names (e.g. Gurkhali FC Red) are added as-is.
+        """
+        name = (team_name or "").strip()
+        if not name:
+            return None
+        existing = self.teams.filter(name__iexact=name).first()
+        if existing:
+            return existing
+        club = ClubInfo.objects.first()
+        is_club = bool(
+            club and name.lower() == club.name.strip().lower()
+        )
+        return GroupTeam.objects.create(group=self, name=name, is_club=is_club)
 
 
 class GroupTeam(models.Model):

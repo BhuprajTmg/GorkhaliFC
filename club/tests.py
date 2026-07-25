@@ -194,6 +194,57 @@ class GroupStandingsSyncTests(TestCase):
         self.assertEqual(self.gurkhali.played, 0)
 
 
+class MatchGroupAutoAddTests(TestCase):
+    def setUp(self):
+        ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        self.group = CompetitionGroup.objects.create(
+            name="Group A", season="Darwin Cup 2026", is_active=True
+        )
+        for name in ("Chillax 1", "Gurkhali FC Red"):
+            TeamRegistration.objects.create(
+                tournament_name="Darwin Cup 2026",
+                team_name=name,
+                manager_name="Manager",
+                phone="0400000000",
+                email=f"{name.replace(' ', '').lower()}@example.com",
+                agreed_to_rules=True,
+                status=TeamRegistration.Status.APPROVED,
+            )
+
+    def test_saving_match_with_group_adds_missing_teams(self):
+        # Group starts empty / with unrelated names — match should still save.
+        GroupTeam.objects.create(group=self.group, name="Darwin FC")
+
+        match = Match.objects.create(
+            home_team="Chillax 1",
+            away_team="Gurkhali FC Red",
+            group=self.group,
+            match_date=datetime.date(2026, 7, 25),
+            status=Match.Status.SCHEDULED,
+        )
+
+        names = set(self.group.teams.values_list("name", flat=True))
+        self.assertIn("Chillax 1", names)
+        self.assertIn("Gurkhali FC Red", names)
+        self.assertEqual(match.group_id, self.group.pk)
+
+    def test_finished_match_syncs_after_auto_add(self):
+        Match.objects.create(
+            home_team="Chillax 1",
+            away_team="Gurkhali FC Red",
+            group=self.group,
+            match_date=datetime.date(2026, 7, 25),
+            status=Match.Status.FINISHED,
+            home_score=1,
+            away_score=2,
+        )
+        home = GroupTeam.objects.get(group=self.group, name="Chillax 1")
+        away = GroupTeam.objects.get(group=self.group, name="Gurkhali FC Red")
+        self.assertEqual(home.lost, 1)
+        self.assertEqual(away.won, 1)
+        self.assertEqual(away.goals_for, 2)
+
+
 class ApprovedTeamDropdownTests(TestCase):
     def _reg(self, name, status):
         return TeamRegistration.objects.create(

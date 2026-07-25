@@ -4,11 +4,25 @@ from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from .models import (
     ContactMessage,
+    GroupTeam,
     Match,
     RegisteredPlayer,
     ROSTER_SIZE,
     TeamRegistration,
 )
+
+
+def _approved_team_choices(extra_names=None):
+    """Build select choices from Approved registrations (+ optional extras)."""
+    approved = TeamRegistration.approved_team_names()
+    choices = [("", "---------")] + [(name, name) for name in approved]
+    seen = {name.lower() for name in approved}
+    for name in extra_names or []:
+        cleaned = (name or "").strip()
+        if cleaned and cleaned.lower() not in seen:
+            choices.append((cleaned, f"{cleaned} (not in approved list)"))
+            seen.add(cleaned.lower())
+    return choices, approved
 
 
 class ContactForm(forms.ModelForm):
@@ -105,6 +119,7 @@ class MatchAdminForm(forms.ModelForm):
     """Home/Away pickers limited to Approved tournament registrations.
 
     Pending, waitlisted, and rejected teams never appear in the dropdowns.
+    Picking a Group on save adds both teams into that group's table.
     """
 
     home_team = forms.ChoiceField(
@@ -124,30 +139,19 @@ class MatchAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        approved = TeamRegistration.approved_team_names()
-        choices = [("", "---------")] + [(name, name) for name in approved]
-
-        # Keep a legacy/saved name selectable so existing fixtures remain editable
-        # even if that registration was later un-approved.
+        extras = []
         instance = kwargs.get("instance") or getattr(self, "instance", None)
         if instance and instance.pk:
-            for field_name in ("home_team", "away_team"):
-                current = (getattr(instance, field_name, "") or "").strip()
-                if current and current not in approved:
-                    choices.append(
-                        (current, f"{current} (no longer approved)")
-                    )
+            extras = [instance.home_team, instance.away_team]
+        choices, approved = _approved_team_choices(extras)
 
         self.fields["home_team"].choices = choices
         self.fields["away_team"].choices = choices
 
         if not approved:
-            self.fields["home_team"].help_text = (
-                "No approved teams yet — approve a registration first."
-            )
-            self.fields["away_team"].help_text = (
-                "No approved teams yet — approve a registration first."
-            )
+            tip = "No approved teams yet — approve a registration first."
+            self.fields["home_team"].help_text = tip
+            self.fields["away_team"].help_text = tip
 
     def clean(self):
         cleaned = super().clean()
@@ -176,3 +180,30 @@ class MatchAdminForm(forms.ModelForm):
             self.add_error("away_team", "Home and away teams must be different.")
 
         return cleaned
+
+
+class GroupTeamAdminForm(forms.ModelForm):
+    """Lucky-draw group assignment: pick from Approved registrations only."""
+
+    name = forms.ChoiceField(
+        choices=[],
+        label="Team",
+        help_text="Approved registered teams only (set after the lucky draw).",
+    )
+
+    class Meta:
+        model = GroupTeam
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        extras = []
+        instance = kwargs.get("instance") or getattr(self, "instance", None)
+        if instance and instance.pk and instance.name:
+            extras = [instance.name]
+        choices, approved = _approved_team_choices(extras)
+        self.fields["name"].choices = choices
+        if not approved:
+            self.fields["name"].help_text = (
+                "No approved teams yet — approve a registration first."
+            )
