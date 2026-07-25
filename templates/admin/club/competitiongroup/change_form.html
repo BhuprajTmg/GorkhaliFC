@@ -1,0 +1,19 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+{% if original and original.pk %}
+<div class="submit-row" style="margin-top: 12px;">
+    <input
+        type="submit"
+        value="Generate World Cup fixtures"
+        name="_generate_fixtures"
+        style="background: #d81e3f; border-color: #d81e3f;"
+        onclick="return confirm('Create round-robin group-stage matches for every team in this group? Existing pairings will be skipped.');"
+    >
+    <p style="margin: 8px 0 0; color: var(--body-quiet-color, #999); font-size: 12px;">
+        For 4 teams this creates 6 matches (3 matchdays). Safe to run again — duplicates are skipped.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

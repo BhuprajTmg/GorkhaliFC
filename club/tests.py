@@ -4,6 +4,10 @@ from django.test import TestCase
 from django.utils import timezone
 
 from club.forms import MatchAdminForm
+from club.group_fixtures import (
+    generate_group_stage_fixtures,
+    world_cup_group_rounds,
+)
 from club.models import ClubInfo, CompetitionGroup, GroupTeam, Match, TeamRegistration
 from club.schedule import FINISHED_VISIBLE_MINUTES, build_match_schedule
 from club.standings import recalculate_group_standings
@@ -243,6 +247,55 @@ class MatchGroupAutoAddTests(TestCase):
         self.assertEqual(home.lost, 1)
         self.assertEqual(away.won, 1)
         self.assertEqual(away.goals_for, 2)
+
+
+class WorldCupFixtureGeneratorTests(TestCase):
+    def setUp(self):
+        ClubInfo.objects.create(
+            name="Gurkhali FC", founded_year=2023, home_ground="Gardens Oval, Darwin"
+        )
+        self.group = CompetitionGroup.objects.create(
+            name="Group A", season="Darwin Cup 2026", is_active=True
+        )
+        for name in ("Alpha FC", "Bravo SC", "Charlie United", "Delta FC"):
+            GroupTeam.objects.create(group=self.group, name=name)
+
+    def test_four_teams_create_six_fixtures_across_three_rounds(self):
+        rounds = world_cup_group_rounds(
+            ["Alpha FC", "Bravo SC", "Charlie United", "Delta FC"]
+        )
+        self.assertEqual(len(rounds), 3)
+        self.assertTrue(all(len(r) == 2 for r in rounds))
+
+        result = generate_group_stage_fixtures(
+            self.group, start_date=datetime.date(2026, 8, 1)
+        )
+        self.assertEqual(len(result.created), 6)
+        self.assertEqual(len(result.skipped), 0)
+        self.assertEqual(Match.objects.filter(group=self.group).count(), 6)
+
+        # Every pair appears exactly once (order-independent).
+        pairs = set()
+        for match in Match.objects.filter(group=self.group):
+            pairs.add(frozenset({match.home_team, match.away_team}))
+        self.assertEqual(len(pairs), 6)
+
+    def test_rerun_skips_existing_pairings(self):
+        generate_group_stage_fixtures(
+            self.group, start_date=datetime.date(2026, 8, 1)
+        )
+        result = generate_group_stage_fixtures(
+            self.group, start_date=datetime.date(2026, 9, 1)
+        )
+        self.assertEqual(len(result.created), 0)
+        self.assertEqual(len(result.skipped), 6)
+        self.assertEqual(Match.objects.filter(group=self.group).count(), 6)
+
+    def test_needs_at_least_two_teams(self):
+        empty = CompetitionGroup.objects.create(name="Group Z", is_active=True)
+        result = generate_group_stage_fixtures(empty)
+        self.assertEqual(result.created, [])
+        self.assertTrue(result.errors)
 
 
 class GroupFilteredMatchDropdownTests(TestCase):

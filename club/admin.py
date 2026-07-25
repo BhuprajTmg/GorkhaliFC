@@ -1,9 +1,10 @@
-from django.contrib import admin
-from django.http import JsonResponse
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import path
 from django.utils.html import format_html
 
 from .forms import GroupTeamAdminForm, MatchAdminForm, team_names_for_group
+from .group_fixtures import generate_group_stage_fixtures
 from .models import (
     ClubInfo,
     CompetitionGroup,
@@ -179,10 +180,60 @@ class CompetitionGroupAdmin(admin.ModelAdmin):
     list_editable = ("is_active",)
     list_filter = ("is_active",)
     inlines = [GroupTeamInline]
+    actions = ("generate_world_cup_fixtures",)
+    change_form_template = "admin/club/competitiongroup/change_form.html"
 
     @admin.display(description="Teams")
     def team_count(self, obj):
         return obj.teams.count()
+
+    def _report_fixture_result(self, request, group, result):
+        for error in result.errors:
+            self.message_user(request, error, level=messages.ERROR)
+        if result.created:
+            self.message_user(
+                request,
+                f"{group.name}: created {len(result.created)} group-stage "
+                f"fixture(s) — "
+                + ", ".join(
+                    f"{m.home_team} vs {m.away_team}" for m in result.created
+                )
+                + ".",
+                level=messages.SUCCESS,
+            )
+        if result.skipped:
+            self.message_user(
+                request,
+                f"{group.name}: skipped {len(result.skipped)} existing "
+                f"pairing(s).",
+                level=messages.WARNING,
+            )
+        if not result.created and not result.skipped and not result.errors:
+            self.message_user(
+                request,
+                f"{group.name}: nothing to create.",
+                level=messages.INFO,
+            )
+
+    @admin.action(description="Generate World Cup group-stage fixtures")
+    def generate_world_cup_fixtures(self, request, queryset):
+        for group in queryset:
+            result = generate_group_stage_fixtures(group)
+            self._report_fixture_result(request, group, result)
+
+    def response_change(self, request, obj):
+        if "_generate_fixtures" in request.POST:
+            # Save inlines first so newly picked lucky-draw teams are included.
+            # response_change runs after successful save, so teams are current.
+            result = generate_group_stage_fixtures(obj)
+            self._report_fixture_result(request, obj, result)
+            return HttpResponseRedirect(request.path)
+        return super().response_change(request, obj)
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["show_generate_fixtures"] = bool(object_id)
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
 
 @admin.register(ContactMessage)

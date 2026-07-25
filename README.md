@@ -231,10 +231,11 @@ Everything editable lives in the Django admin (`/admin/`):
   then set **Finished** to show the result briefly and update that
   group's standings table.
 - **Competition groups** — World Cup–style groups of up to four teams
-  each. Standings (P/W/D/L/GF/GA) are **auto-synced** from finished
-  matches when both home and away names match teams in the group.
-  Tick **Is club** on Gurkhali FC to highlight that row. Mark up to
-  four groups **Is active** to show them in the Schedule grid.
+  each. After the lucky draw, add teams to a group, then click
+  **Generate World Cup fixtures** (or use the changelist action) to
+  auto-create the round-robin matches (6 games for 4 teams). Standings
+  sync from finished match scores. Tick **Is club** on Gurkhali FC to
+  highlight that row.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section
