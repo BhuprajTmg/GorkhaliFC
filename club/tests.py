@@ -245,44 +245,66 @@ class MatchGroupAutoAddTests(TestCase):
         self.assertEqual(away.goals_for, 2)
 
 
-class ApprovedTeamDropdownTests(TestCase):
-    def _reg(self, name, status):
-        return TeamRegistration.objects.create(
-            tournament_name="Darwin Cup 2026",
-            team_name=name,
-            manager_name="Manager",
-            phone="0400000000",
-            email=f"{name.replace(' ', '').lower()}@example.com",
-            agreed_to_rules=True,
-            status=status,
+class GroupFilteredMatchDropdownTests(TestCase):
+    def setUp(self):
+        self.group_a = CompetitionGroup.objects.create(name="Group A", is_active=True)
+        self.group_b = CompetitionGroup.objects.create(name="Group B", is_active=True)
+        for name in ("Chillax 1", "Gurkhali FC Red", "Darwin FC"):
+            GroupTeam.objects.create(group=self.group_a, name=name)
+        GroupTeam.objects.create(group=self.group_b, name="Nightcliff FC")
+        GroupTeam.objects.create(group=self.group_b, name="Mindil Beach SC")
+
+    def test_home_away_only_list_selected_group_teams(self):
+        form = MatchAdminForm(data={"group": self.group_a.pk})
+        # Bound form resolves group from POST data for choices.
+        form.is_valid()
+        choice_values = [
+            value for value, label in form.fields["home_team"].choices if value
+        ]
+        self.assertEqual(
+            sorted(choice_values),
+            ["Chillax 1", "Darwin FC", "Gurkhali FC Red"],
         )
-
-    def test_only_approved_names_listed(self):
-        self._reg("Darwin FC", TeamRegistration.Status.APPROVED)
-        self._reg("Casuarina SC", TeamRegistration.Status.PENDING)
-        self._reg("Palmerston FC", TeamRegistration.Status.WAITLISTED)
-        self._reg("Nightcliff FC", TeamRegistration.Status.REJECTED)
-        self._reg("Gurkhali FC", TeamRegistration.Status.APPROVED)
-
-        names = TeamRegistration.approved_team_names()
-        self.assertEqual(names, ["Darwin FC", "Gurkhali FC"])
-
-        form = MatchAdminForm()
-        choice_values = [value for value, label in form.fields["home_team"].choices if value]
-        self.assertEqual(choice_values, ["Darwin FC", "Gurkhali FC"])
-        self.assertNotIn("Casuarina SC", choice_values)
-        self.assertNotIn("Palmerston FC", choice_values)
         self.assertNotIn("Nightcliff FC", choice_values)
 
-    def test_form_rejects_unapproved_team(self):
-        self._reg("Darwin FC", TeamRegistration.Status.APPROVED)
+    def test_rejects_team_from_another_group(self):
         form = MatchAdminForm(
             data={
-                "home_team": "Darwin FC",
-                "away_team": "Random FC",
+                "group": self.group_a.pk,
+                "home_team": "Chillax 1",
+                "away_team": "Nightcliff FC",
                 "match_date": "2026-08-01",
                 "status": Match.Status.SCHEDULED,
             }
         )
         self.assertFalse(form.is_valid())
         self.assertIn("away_team", form.errors)
+
+    def test_requires_group(self):
+        form = MatchAdminForm(
+            data={
+                "home_team": "Chillax 1",
+                "away_team": "Darwin FC",
+                "match_date": "2026-08-01",
+                "status": Match.Status.SCHEDULED,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("group", form.errors)
+
+    def test_teams_for_group_admin_endpoint(self):
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+
+        User = get_user_model()
+        admin_user = User.objects.create_superuser(
+            "admin", "admin@example.com", "password"
+        )
+        self.client.force_login(admin_user)
+        url = reverse("admin:club_match_teams_for_group")
+        response = self.client.get(url, {"group_id": self.group_b.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            sorted(response.json()["teams"]),
+            ["Mindil Beach SC", "Nightcliff FC"],
+        )

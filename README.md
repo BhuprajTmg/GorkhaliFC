@@ -225,11 +225,11 @@ Everything editable lives in the Django admin (`/admin/`):
   ground, location, contact details, social links.
 - **Players** — name, position, jersey number, photo, bio, captain flag,
   display order.
-- **Matches** — one row = one fixture: **Home team vs Away team** (dropdowns
-  list **Approved** registrations only), optional **Group**, date/time/
-  venue, scores, and **Status**. Set Status to "Live now" on match day,
-  fill **both** scores, then set **Finished** to show the result briefly
-  and update that group's standings table.
+- **Matches** — one row = one fixture: pick **Group** first (after the
+  lucky draw), then **Home / Away** dropdowns show only teams in that
+  group. Set Status to "Live now" on match day, fill **both** scores,
+  then set **Finished** to show the result briefly and update that
+  group's standings table.
 - **Competition groups** — World Cup–style groups of up to four teams
   each. Standings (P/W/D/L/GF/GA) are **auto-synced** from finished
   matches when both home and away names match teams in the group.

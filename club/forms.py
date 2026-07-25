@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from .models import (
+    CompetitionGroup,
     ContactMessage,
     GroupTeam,
     Match,
@@ -23,6 +24,13 @@ def _approved_team_choices(extra_names=None):
             choices.append((cleaned, f"{cleaned} (not in approved list)"))
             seen.add(cleaned.lower())
     return choices, approved
+
+
+def team_names_for_group(group):
+    """Return ordered team names belonging to a competition group."""
+    if not group:
+        return []
+    return list(group.teams.order_by("name").values_list("name", flat=True))
 
 
 class ContactForm(forms.ModelForm):
@@ -67,7 +75,10 @@ class TeamRegistrationForm(forms.ModelForm):
             "email": forms.EmailInput(attrs={"placeholder": "team@example.com"}),
             "home_city": forms.TextInput(attrs={"placeholder": "e.g. Darwin"}),
             "experience": forms.Textarea(
-                attrs={"placeholder": "Optional — any previous tournaments you've played in", "rows": 3}
+                attrs={
+                    "placeholder": "Optional — any previous tournaments you've played in",
+                    "rows": 3,
+                }
             ),
             "notes": forms.Textarea(
                 attrs={"placeholder": "Anything else we should know? (optional)", "rows": 3}
@@ -81,7 +92,9 @@ class RegisteredPlayerForm(forms.ModelForm):
         fields = ["name", "jersey_number"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "Player full name"}),
-            "jersey_number": forms.NumberInput(attrs={"placeholder": "#", "min": 0, "max": 99}),
+            "jersey_number": forms.NumberInput(
+                attrs={"placeholder": "#", "min": 0, "max": 99}
+            ),
         }
 
 
@@ -116,21 +129,24 @@ RegisteredPlayerFormSet = inlineformset_factory(
 
 
 class MatchAdminForm(forms.ModelForm):
-    """Home/Away pickers limited to Approved tournament registrations.
+    """Group-first fixture form: Home/Away list only teams in that group."""
 
-    Pending, waitlisted, and rejected teams never appear in the dropdowns.
-    Picking a Group on save adds both teams into that group's table.
-    """
-
+    group = forms.ModelChoiceField(
+        queryset=CompetitionGroup.objects.all(),
+        required=True,
+        empty_label="--------- Select a group first ---------",
+        help_text="Pick the group from the lucky draw first. Home/Away then "
+        "only show teams assigned to that group.",
+    )
     home_team = forms.ChoiceField(
         choices=[],
         label="Home team",
-        help_text="Approved registered teams only.",
+        help_text="Teams currently in the selected group.",
     )
     away_team = forms.ChoiceField(
         choices=[],
         label="Away team",
-        help_text="Approved registered teams only.",
+        help_text="Teams currently in the selected group.",
     )
 
     class Meta:
@@ -139,41 +155,86 @@ class MatchAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        from django.urls import NoReverseMatch, reverse
+
+        try:
+            self.fields["group"].widget.attrs["data-teams-url"] = reverse(
+                "admin:club_match_teams_for_group"
+            )
+        except NoReverseMatch:
+            pass
+
+        group = self._resolve_group()
+        team_names = team_names_for_group(group)
+
+        # Keep currently saved names available when editing, even if the team
+        # was later removed from the group.
+        instance = self.instance if getattr(self.instance, "pk", None) else None
         extras = []
-        instance = kwargs.get("instance") or getattr(self, "instance", None)
-        if instance and instance.pk:
-            extras = [instance.home_team, instance.away_team]
-        choices, approved = _approved_team_choices(extras)
+        if instance:
+            for value in (instance.home_team, instance.away_team):
+                if value and value not in team_names:
+                    extras.append(value)
+
+        if group:
+            choices = [("", "---------")] + [(name, name) for name in team_names]
+            for name in extras:
+                choices.append((name, f"{name} (not in this group anymore)"))
+            tip = "Teams currently in the selected group."
+        else:
+            choices = [("", "--------- Select a group first ---------")]
+            tip = "Select a group first to load its teams."
 
         self.fields["home_team"].choices = choices
         self.fields["away_team"].choices = choices
+        self.fields["home_team"].help_text = tip
+        self.fields["away_team"].help_text = tip
 
-        if not approved:
-            tip = "No approved teams yet — approve a registration first."
-            self.fields["home_team"].help_text = tip
-            self.fields["away_team"].help_text = tip
+        if group and not team_names:
+            empty_tip = (
+                "This group has no teams yet — add them under Competition "
+                "groups after the lucky draw."
+            )
+            self.fields["home_team"].help_text = empty_tip
+            self.fields["away_team"].help_text = empty_tip
+
+    def _resolve_group(self):
+        group = None
+        if self.is_bound:
+            group_id = self.data.get(self.add_prefix("group")) or self.data.get("group")
+            if group_id:
+                group = CompetitionGroup.objects.filter(pk=group_id).first()
+        elif self.instance and self.instance.group_id:
+            group = self.instance.group
+        return group
 
     def clean(self):
         cleaned = super().clean()
+        group = cleaned.get("group")
         home = (cleaned.get("home_team") or "").strip()
         away = (cleaned.get("away_team") or "").strip()
-        approved = {name.lower() for name in TeamRegistration.approved_team_names()}
 
-        # Allow currently saved names through (legacy fixtures); block new picks
-        # that aren't approved.
-        instance = self.instance
+        if not group:
+            self.add_error("group", "Select a group before picking teams.")
+            return cleaned
+
+        allowed = {name.lower() for name in team_names_for_group(group)}
+        instance = self.instance if getattr(self.instance, "pk", None) else None
+
         for field_name, value in (("home_team", home), ("away_team", away)):
             if not value:
                 continue
             saved = (
                 (getattr(instance, field_name, "") or "").strip().lower()
-                if instance and instance.pk
+                if instance
                 else ""
             )
-            if value.lower() not in approved and value.lower() != saved:
+            if value.lower() not in allowed and value.lower() != saved:
                 self.add_error(
                     field_name,
-                    "Only teams with an Approved registration can be selected.",
+                    f'"{value}" is not in {group.name}. '
+                    "Add the team to that group after the lucky draw, then try again.",
                 )
 
         if home and away and home.lower() == away.lower():

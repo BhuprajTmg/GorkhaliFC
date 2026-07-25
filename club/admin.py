@@ -1,7 +1,9 @@
 from django.contrib import admin
+from django.http import JsonResponse
+from django.urls import path
 from django.utils.html import format_html
 
-from .forms import GroupTeamAdminForm, MatchAdminForm
+from .forms import GroupTeamAdminForm, MatchAdminForm, team_names_for_group
 from .models import (
     ClubInfo,
     CompetitionGroup,
@@ -101,11 +103,11 @@ class MatchAdmin(admin.ModelAdmin):
         (
             "Fixture",
             {
-                "fields": ("home_team", "away_team", "group"),
+                "fields": ("group", "home_team", "away_team"),
                 "description": (
-                    "Home and Away come from Approved registrations only. "
-                    "After the lucky draw, pick the Group — both teams are "
-                    "added to that group's table automatically if needed."
+                    "1) Select the Group (after the lucky draw). "
+                    "2) Home and Away dropdowns then show only teams in that "
+                    "group."
                 ),
             },
         ),
@@ -121,6 +123,25 @@ class MatchAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    class Media:
+        js = ("js/admin_match_fixture.js",)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "teams-for-group/",
+                self.admin_site.admin_view(self.teams_for_group_view),
+                name="club_match_teams_for_group",
+            ),
+        ]
+        return custom + urls
+
+    def teams_for_group_view(self, request):
+        group_id = request.GET.get("group_id")
+        group = CompetitionGroup.objects.filter(pk=group_id).first() if group_id else None
+        return JsonResponse({"teams": team_names_for_group(group)})
 
     @admin.display(description="Match")
     def fixture(self, obj):
