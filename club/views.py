@@ -8,10 +8,10 @@ from .models import (
     CompetitionGroup,
     GalleryCategory,
     GalleryImage,
-    Match,
     Player,
     TeamRegistration,
 )
+from .schedule import build_match_schedule
 
 
 def home(request):
@@ -76,16 +76,11 @@ def home(request):
         if group_players:
             grouped_players.append({"label": label, "players": group_players})
 
-    # Schedule: live matches always shown first, then the very next
-    # scheduled match is highlighted as "Next Match", then the rest of the
-    # upcoming fixtures, then finished matches as results. Driven by the
-    # Match.status field (set from the admin), not just today's date, so
-    # a match manually marked "Live now" always surfaces at the top.
-    live_matches = list(Match.objects.filter(status=Match.Status.LIVE))
-    scheduled_matches = list(Match.objects.filter(status=Match.Status.SCHEDULED))
-    next_match = scheduled_matches[0] if scheduled_matches else None
-    upcoming_matches = scheduled_matches[1:] if next_match else []
-    past_matches = Match.objects.filter(status=Match.Status.FINISHED).order_by("-match_date")
+    # Schedule: only the head of the fixture queue is shown as "Next Match".
+    # Later games stay hidden until the preceding match is marked Finished
+    # (see club.schedule.build_match_schedule). Live matches still surface
+    # immediately while they are in progress.
+    schedule = build_match_schedule()
 
     # World Cup–format group tables: up to four active groups shown as a
     # compact interactive grid; each expands into a full standings view.
@@ -101,10 +96,10 @@ def home(request):
         "club": club,
         "players_count": active_players.count(),
         "grouped_players": grouped_players,
-        "live_matches": live_matches,
-        "next_match": next_match,
-        "upcoming_matches": upcoming_matches,
-        "past_matches": past_matches,
+        "live_matches": schedule["live_matches"],
+        "next_match": schedule["next_match"],
+        "upcoming_matches": schedule["upcoming_matches"],
+        "past_matches": schedule["past_matches"],
         "competition_groups": competition_groups,
         "categories": GalleryCategory.objects.all(),
         "images": GalleryImage.objects.all(),

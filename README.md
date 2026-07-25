@@ -25,8 +25,9 @@ with the nav bar linking to in-page sections via anchors
   - Any match marked **Live now** shows in a "Live Now" section at the
     very top, with a pulsing red dot, a glowing highlighted border, and
     the live score.
-  - The next **Scheduled** match is highlighted as "Next Match", followed
-    by the rest of the upcoming fixtures.
+  - Only one **Next Match** is revealed at a time — the earliest
+    unfinished fixture. The following game appears in that slot only
+    after the preceding match is marked **Finished**.
   - Matches marked **Finished** show under "Results" with their final
     score.
   - Up to four World Cup–format **group tables** in a compact interactive
