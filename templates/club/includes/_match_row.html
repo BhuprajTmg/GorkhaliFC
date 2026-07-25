@@ -5,7 +5,7 @@
     data-finished-visible-minutes="{{ finished_visible_minutes|default:5 }}"
     {% endif %}
 >
-    <div class="match-date {% if match.is_home %}match-date--home{% endif %}">
+    <div class="match-date {% if match.is_club_home %}match-date--home{% endif %}">
         <span class="match-date-month">{{ match.match_date|date:"M" }}</span>
         <span class="match-date-day">{{ match.match_date|date:"d" }}</span>
         <span class="match-date-year">{{ match.match_date|date:"Y" }}</span>
@@ -16,8 +16,9 @@
         {% elif match.status == "FINISHED" %}
         <div class="finished-badge"><span class="finished-dot"></span>FINISHED</div>
         {% endif %}
-        <h4>{{ club.name|default:"Gurkhali FC" }} vs {{ match.opponent }}</h4>
+        <h4>{{ match.home_team }} vs {{ match.away_team }}</h4>
         <p>
+            {% if match.group %}<span class="match-group-label">{{ match.group.name }}</span>{% if match.venue or match.match_time %} &bull; {% endif %}{% endif %}
             {% if match.venue %}{{ match.venue }}{% if match.match_time %} &bull; {% endif %}{% endif %}
             {% if match.match_time %}{{ match.match_time|time:"g:i A" }}{% endif %}
         </p>
@@ -26,9 +27,11 @@
         <span class="match-score match-score--live">{{ match.home_score|default_if_none:0 }} - {{ match.away_score|default_if_none:0 }}</span>
     {% elif match.status == "FINISHED" %}
         <span class="match-score">{{ match.home_score|default_if_none:"-" }} - {{ match.away_score|default_if_none:"-" }}</span>
-    {% else %}
-        <span class="match-tag {% if match.is_home %}match-tag--home{% else %}match-tag--away{% endif %}">
-            {% if match.is_home %}HOME{% else %}AWAY{% endif %}
+    {% elif match.involves_club %}
+        <span class="match-tag {% if match.is_club_home %}match-tag--home{% else %}match-tag--away{% endif %}">
+            {% if match.is_club_home %}HOME{% else %}AWAY{% endif %}
         </span>
+    {% else %}
+        <span class="match-tag match-tag--group">GROUP</span>
     {% endif %}
 </div>

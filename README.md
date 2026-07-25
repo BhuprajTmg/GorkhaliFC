@@ -225,14 +225,13 @@ Everything editable lives in the Django admin (`/admin/`):
   ground, location, contact details, social links.
 - **Players** — name, position, jersey number, photo, bio, captain flag,
   display order.
-- **Matches** — fixtures/results: opponent, date, time, venue, home/away,
-  score, and **Status**. Set Status to "Live now" during the match to
-  show it at the top of the schedule with a pulsing live indicator —
-  update the score fields as the match progresses, then set Status to
-  "Finished" afterwards to move it into Results.
+- **Matches** — one row = one fixture: **Home team vs Away team**, optional
+  **Group**, date/time/venue, scores, and **Status**. Set Status to
+  "Live now" on match day, fill **both** scores, then set **Finished**
+  to show the result briefly and update that group's standings table.
 - **Competition groups** — World Cup–style groups of up to four teams
   each. Standings (P/W/D/L/GF/GA) are **auto-synced** from finished
-  Match scores when the opponent name matches a team in the group.
+  matches when both home and away names match teams in the group.
   Tick **Is club** on Gurkhali FC to highlight that row. Mark up to
   four groups **Is active** to show them in the Schedule grid.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,

@@ -1,12 +1,11 @@
-"""Sync World Cup group tables from finished Match scores.
+"""Sync World Cup group tables from finished two-team Match scores.
 
-Each Match is Gurkhali FC vs an opponent. When a match is Finished with
-scores, both the club row and the opponent row (if that opponent is in the
-same CompetitionGroup) are updated. Standings are fully recalculated from
-all finished scored matches so score edits stay in sync.
+A Match is home_team vs away_team. When Finished with both scores set, any
+CompetitionGroup that contains both team names (or the match.group FK) is
+recalculated from all finished results in that group.
 """
 
-from .models import ClubInfo, CompetitionGroup, GroupTeam, Match
+from .models import CompetitionGroup, GroupTeam, Match
 
 
 def _apply_result(bucket, gf, ga):
@@ -32,6 +31,14 @@ def _empty_stats():
     }
 
 
+def _match_counts_for_group(match, group, by_name):
+    if match.group_id == group.pk:
+        return True
+    home = by_name.get(match.home_team.strip().lower())
+    away = by_name.get(match.away_team.strip().lower())
+    return home is not None and away is not None
+
+
 def recalculate_group_standings(group):
     """Reset a group's team stats and rebuild them from finished matches."""
     teams = list(group.teams.all())
@@ -41,28 +48,21 @@ def recalculate_group_standings(group):
     by_name = {team.name.strip().lower(): team for team in teams}
     stats = {team.pk: _empty_stats() for team in teams}
 
-    club_team = next((team for team in teams if team.is_club), None)
-    if club_team is None:
-        club = ClubInfo.objects.first()
-        if club:
-            club_team = by_name.get(club.name.strip().lower())
+    finished_matches = Match.objects.filter(
+        status=Match.Status.FINISHED,
+        home_score__isnull=False,
+        away_score__isnull=False,
+    )
 
-    if club_team is not None:
-        finished_matches = Match.objects.filter(
-            status=Match.Status.FINISHED,
-            home_score__isnull=False,
-            away_score__isnull=False,
-        )
-        for match in finished_matches:
-            opponent = by_name.get(match.opponent.strip().lower())
-            if opponent is None:
-                continue
-            if match.is_home:
-                club_gf, club_ga = match.home_score, match.away_score
-            else:
-                club_gf, club_ga = match.away_score, match.home_score
-            _apply_result(stats[club_team.pk], club_gf, club_ga)
-            _apply_result(stats[opponent.pk], club_ga, club_gf)
+    for match in finished_matches:
+        if not _match_counts_for_group(match, group, by_name):
+            continue
+        home = by_name.get(match.home_team.strip().lower())
+        away = by_name.get(match.away_team.strip().lower())
+        if home is None or away is None:
+            continue
+        _apply_result(stats[home.pk], match.home_score, match.away_score)
+        _apply_result(stats[away.pk], match.away_score, match.home_score)
 
     update_fields = [
         "played",
@@ -85,35 +85,31 @@ def recalculate_all_group_standings():
 
 
 def sync_standings_after_match(match):
-    """Recalculate every group that could be affected by this match."""
-    opponent_key = (match.opponent or "").strip().lower()
-    club = ClubInfo.objects.first()
-    club_key = club.name.strip().lower() if club else "gurkhali fc"
+    """Recalculate every group affected by this home vs away fixture."""
+    group_ids = set()
 
-    group_ids = set(
-        GroupTeam.objects.filter(name__iexact=match.opponent).values_list(
-            "group_id", flat=True
-        )
-    )
-    group_ids.update(
-        GroupTeam.objects.filter(is_club=True).values_list("group_id", flat=True)
-    )
-    if club:
-        group_ids.update(
-            GroupTeam.objects.filter(name__iexact=club.name).values_list(
+    if match.group_id:
+        group_ids.add(match.group_id)
+
+    home = (match.home_team or "").strip()
+    away = (match.away_team or "").strip()
+    if home and away:
+        home_groups = set(
+            GroupTeam.objects.filter(name__iexact=home).values_list(
                 "group_id", flat=True
             )
         )
-
-    # Always refresh groups that contain the opponent or the club side.
-    # If the opponent isn't in any group, still refresh club groups so a
-    # removed/renamed opponent doesn't leave stale points behind.
-    if not group_ids and opponent_key:
-        group_ids.update(
-            GroupTeam.objects.filter(name__iexact=club_key).values_list(
+        away_groups = set(
+            GroupTeam.objects.filter(name__iexact=away).values_list(
                 "group_id", flat=True
             )
         )
+        group_ids.update(home_groups & away_groups)
+        group_ids.update(home_groups)
+        group_ids.update(away_groups)
+
+    if not group_ids:
+        return
 
     for group in CompetitionGroup.objects.filter(pk__in=group_ids).prefetch_related(
         "teams"

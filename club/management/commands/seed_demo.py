@@ -81,32 +81,8 @@ class Command(BaseCommand):
             status = "created" if created else "already existed"
             self.stdout.write(f"Gallery category {category_name}: {status}")
 
-        today = datetime.date.today()
-        placeholder_fixtures = [
-            ("Darwin FC", 14, "Gardens Oval, Darwin", True, datetime.time(18, 0)),
-            ("Casuarina SC", 21, "Casuarina Stadium", False, datetime.time(17, 30)),
-            ("Palmerston FC", 28, "Gardens Oval, Darwin", True, datetime.time(19, 0)),
-            ("Nightcliff FC", 35, "Nightcliff Oval", False, datetime.time(16, 0)),
-            ("Mindil Beach SC", 42, "Gardens Oval, Darwin", True, datetime.time(18, 30)),
-        ]
-        for opponent, days_ahead, venue, is_home, match_time in placeholder_fixtures:
-            match_date = today + datetime.timedelta(days=days_ahead)
-            match, created = Match.objects.get_or_create(
-                opponent=opponent,
-                match_date=match_date,
-                defaults={
-                    "venue": venue,
-                    "is_home": is_home,
-                    "match_time": match_time,
-                },
-            )
-            status = "created" if created else "already existed"
-            self.stdout.write(f"Fixture vs {opponent}: {status}")
-
-        # Four World Cup–format groups (compact grid on the site; editable
-        # under Competition groups in admin). Gurkhali FC sits in Group A.
-        # Team stats start at zero and sync from finished Match scores.
-        # Opponent names must match Match.opponent for the table to update.
+        # Four World Cup–format groups first (so fixtures can link to them).
+        # Standings sync from finished Match home/away scores.
         demo_groups = {
             "Group A": [
                 ("Gurkhali FC", True),
@@ -133,6 +109,7 @@ class Command(BaseCommand):
                 ("Wulagi Wanderers", False),
             ],
         }
+        groups_by_name = {}
         for group_name, teams in demo_groups.items():
             group, group_created = CompetitionGroup.objects.get_or_create(
                 name=group_name,
@@ -144,6 +121,7 @@ class Command(BaseCommand):
             if not group.is_active:
                 group.is_active = True
                 group.save(update_fields=["is_active"])
+            groups_by_name[group_name] = group
             self.stdout.write(
                 f"Competition group {group.name}: "
                 f"{'created' if group_created else 'already existed'}"
@@ -159,6 +137,35 @@ class Command(BaseCommand):
                     team.save(update_fields=["is_club"])
                 status = "created" if created else "already existed"
                 self.stdout.write(f"  {team.name}: {status}")
+
+        today = datetime.date.today()
+        # Each row is one match: home vs away (two teams, one kickoff).
+        placeholder_fixtures = [
+            ("Gurkhali FC", "Darwin FC", "Group A", 14, "Gardens Oval, Darwin", datetime.time(18, 0)),
+            ("Casuarina SC", "Gurkhali FC", "Group A", 21, "Casuarina Stadium", datetime.time(17, 30)),
+            ("Gurkhali FC", "Palmerston FC", "Group A", 28, "Gardens Oval, Darwin", datetime.time(19, 0)),
+            ("Darwin FC", "Casuarina SC", "Group A", 32, "Gardens Oval, Darwin", datetime.time(16, 0)),
+            ("Nightcliff FC", "Mindil Beach SC", "Group B", 35, "Nightcliff Oval", datetime.time(16, 0)),
+            ("Gurkhali FC", "Nightcliff FC", None, 42, "Gardens Oval, Darwin", datetime.time(18, 30)),
+        ]
+        for home, away, group_name, days_ahead, venue, match_time in placeholder_fixtures:
+            match_date = today + datetime.timedelta(days=days_ahead)
+            group = groups_by_name.get(group_name) if group_name else None
+            match, created = Match.objects.get_or_create(
+                home_team=home,
+                away_team=away,
+                match_date=match_date,
+                defaults={
+                    "venue": venue,
+                    "match_time": match_time,
+                    "group": group,
+                },
+            )
+            if not created and group and match.group_id != group.pk:
+                match.group = group
+                match.save(update_fields=["group"])
+            status = "created" if created else "already existed"
+            self.stdout.write(f"Fixture {home} vs {away}: {status}")
 
         recalculate_all_group_standings()
         self.stdout.write("Group standings synced from finished matches.")

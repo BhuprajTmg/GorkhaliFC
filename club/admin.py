@@ -80,20 +80,49 @@ class GalleryImageAdmin(admin.ModelAdmin):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     list_display = (
-        "opponent",
+        "fixture",
+        "group",
         "match_date",
         "match_time",
         "status",
-        "is_home",
         "venue",
         "home_score",
         "away_score",
         "finished_at",
     )
-    list_editable = ("status", "home_score", "away_score")
-    list_filter = ("status", "is_home")
+    list_editable = ("status", "home_score", "away_score", "group")
+    list_filter = ("status", "group")
+    search_fields = ("home_team", "away_team", "venue")
     readonly_fields = ("finished_at",)
     date_hierarchy = "match_date"
+    fieldsets = (
+        (
+            "Fixture",
+            {
+                "fields": ("home_team", "away_team", "group"),
+                "description": (
+                    "Schedule one match as Home vs Away. Pick the competition "
+                    "group so the final score updates that World Cup table. "
+                    "Team names must match the names in that group."
+                ),
+            },
+        ),
+        ("When & where", {"fields": ("match_date", "match_time", "venue")}),
+        (
+            "Result",
+            {
+                "fields": ("status", "home_score", "away_score", "finished_at", "notes"),
+                "description": (
+                    "Fill in BOTH scores, then set status to Finished. The "
+                    "group table recalculates automatically."
+                ),
+            },
+        ),
+    )
+
+    @admin.display(description="Match")
+    def fixture(self, obj):
+        return f"{obj.home_team} vs {obj.away_team}"
 
 
 class GroupTeamInline(admin.TabularInline):

@@ -113,40 +113,57 @@ class GalleryImage(models.Model):
 
 
 class Match(models.Model):
+    """One fixture between two teams (home vs away), optionally linked to a
+    competition group so the final score updates that group's standings.
+    """
+
     class Status(models.TextChoices):
         SCHEDULED = "SCHEDULED", "Scheduled"
         LIVE = "LIVE", "Live now"
         FINISHED = "FINISHED", "Finished"
 
-    opponent = models.CharField(max_length=120, help_text='e.g. "Darwin FC".')
+    home_team = models.CharField(
+        max_length=120,
+        help_text="Home side. Must match a group team name for table sync.",
+    )
+    away_team = models.CharField(
+        max_length=120,
+        help_text="Away side. Must match a group team name for table sync.",
+    )
+    group = models.ForeignKey(
+        "CompetitionGroup",
+        on_delete=models.SET_NULL,
+        related_name="matches",
+        blank=True,
+        null=True,
+        help_text="Which World Cup group table this result updates. "
+        "Both team names should exist in that group.",
+    )
     match_date = models.DateField()
     match_time = models.TimeField(blank=True, null=True)
     venue = models.CharField(max_length=150, blank=True)
-    is_home = models.BooleanField(default=True)
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
         default=Status.SCHEDULED,
-        help_text="Set to 'Live now' on match day to show it at the top of "
-        "the schedule with a live indicator and score. Set to 'Finished' "
-        "with the final score to sync the group table and briefly show the "
-        "result on the site.",
+        help_text="Set to 'Live now' on match day, then 'Finished' with "
+        "both scores filled in to sync the group table.",
     )
     home_score = models.PositiveSmallIntegerField(blank=True, null=True)
     away_score = models.PositiveSmallIntegerField(blank=True, null=True)
     finished_at = models.DateTimeField(
         blank=True,
         null=True,
-        help_text="Set automatically when status becomes Finished. Used to "
-        "keep the result visible for a few minutes on the public site.",
+        help_text="Set automatically when status becomes Finished.",
     )
     notes = models.CharField(max_length=200, blank=True)
 
     class Meta:
         ordering = ["match_date", "match_time"]
+        verbose_name_plural = "Matches"
 
     def __str__(self):
-        return f"{'vs' if self.is_home else '@'} {self.opponent} ({self.match_date})"
+        return f"{self.home_team} vs {self.away_team} ({self.match_date})"
 
     @property
     def is_played(self):
@@ -156,7 +173,60 @@ class Match(models.Model):
     def is_live(self):
         return self.status == self.Status.LIVE
 
+    @property
+    def club_name(self):
+        club = ClubInfo.objects.first()
+        return club.name if club else "Gurkhali FC"
+
+    @property
+    def involves_club(self):
+        club = self.club_name.strip().lower()
+        return club in {
+            self.home_team.strip().lower(),
+            self.away_team.strip().lower(),
+        }
+
+    @property
+    def is_club_home(self):
+        return self.home_team.strip().lower() == self.club_name.strip().lower()
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        errors = {}
+        if (
+            self.home_team
+            and self.away_team
+            and self.home_team.strip().lower() == self.away_team.strip().lower()
+        ):
+            errors["away_team"] = "Home and away teams must be different."
+
+        if self.status == self.Status.FINISHED:
+            if self.home_score is None:
+                errors["home_score"] = "Enter the home score before finishing."
+            if self.away_score is None:
+                errors["away_score"] = "Enter the away score before finishing."
+
+        if self.group_id and self.home_team and self.away_team:
+            names = {
+                n.strip().lower()
+                for n in self.group.teams.values_list("name", flat=True)
+            }
+            if self.home_team.strip().lower() not in names:
+                errors["home_team"] = (
+                    f'"{self.home_team}" is not in {self.group.name}.'
+                )
+            if self.away_team.strip().lower() not in names:
+                errors["away_team"] = (
+                    f'"{self.away_team}" is not in {self.group.name}.'
+                )
+
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
+        from django.utils import timezone
+
         previous_status = None
         if self.pk:
             previous_status = (
@@ -165,12 +235,14 @@ class Match(models.Model):
                 .first()
             )
 
+        # Blank scores on a finished match were blocking table sync — treat
+        # missing values as 0 so a result always updates standings.
         if self.status == self.Status.FINISHED:
-            # Stamp the finish time when entering Finished; keep it stable
-            # if only the score is edited afterwards.
+            if self.home_score is None:
+                self.home_score = 0
+            if self.away_score is None:
+                self.away_score = 0
             if previous_status != self.Status.FINISHED or self.finished_at is None:
-                from django.utils import timezone
-
                 if previous_status != self.Status.FINISHED:
                     self.finished_at = timezone.now()
                 elif self.finished_at is None:
@@ -178,12 +250,31 @@ class Match(models.Model):
         else:
             self.finished_at = None
 
+        # Auto-attach the group when both teams sit in the same one.
+        if not self.group_id and self.home_team and self.away_team:
+            self.group = self._detect_shared_group()
+
         super().save(*args, **kwargs)
 
-        # Keep World Cup group tables in sync with finished scores.
         from .standings import sync_standings_after_match
 
         sync_standings_after_match(self)
+
+    def _detect_shared_group(self):
+        home_groups = set(
+            GroupTeam.objects.filter(name__iexact=self.home_team.strip()).values_list(
+                "group_id", flat=True
+            )
+        )
+        away_groups = set(
+            GroupTeam.objects.filter(name__iexact=self.away_team.strip()).values_list(
+                "group_id", flat=True
+            )
+        )
+        shared = home_groups & away_groups
+        if len(shared) == 1:
+            return CompetitionGroup.objects.filter(pk=shared.pop()).first()
+        return None
 
 
 class ContactMessage(models.Model):
@@ -203,9 +294,8 @@ class ContactMessage(models.Model):
 class CompetitionGroup(models.Model):
     """A World Cup–style group of four teams (e.g. Group A).
 
-    Team W/D/L/GF/GA are synced from finished Match scores (club vs an
-    opponent that appears in this group), then ranked like FIFA tables:
-    points → goal difference → goals for → team name.
+    Team W/D/L/GF/GA are synced from finished Match scores between two
+    teams in this group, then ranked: points → GD → GF → name.
     """
 
     name = models.CharField(max_length=80, help_text='e.g. "Group A".')
@@ -242,8 +332,8 @@ class CompetitionGroup(models.Model):
 class GroupTeam(models.Model):
     """One of up to four teams in a CompetitionGroup, with WC-table stats.
 
-    Stats are auto-calculated from finished matches — opponent names on
-    Match records must match a GroupTeam name in the same group.
+    Stats are auto-calculated from finished matches whose home/away team
+    names match GroupTeam names in this group.
     """
 
     group = models.ForeignKey(
@@ -251,7 +341,7 @@ class GroupTeam(models.Model):
     )
     name = models.CharField(
         max_length=120,
-        help_text="Must match the Match opponent name for score sync.",
+        help_text="Must match Match home/away team names for score sync.",
     )
     is_club = models.BooleanField(
         default=False,
