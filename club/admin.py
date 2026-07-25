@@ -124,8 +124,8 @@ class MatchAdmin(admin.ModelAdmin):
         ),
     )
 
-    class Media:
-        js = ("js/admin_match_fixture.js",)
+    # JS is loaded from templates/admin/club/match/change_form.html after
+    # django.jQuery is initialized (ModelAdmin.Media would run too early).
 
     def get_urls(self):
         urls = super().get_urls()
