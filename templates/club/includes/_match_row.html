@@ -7,6 +7,8 @@
     <div class="match-info">
         {% if match.is_live %}
         <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+        {% elif match.status == "FINISHED" %}
+        <div class="finished-badge"><span class="finished-dot"></span>FINISHED</div>
         {% endif %}
         <h4>{{ club.name|default:"Gurkhali FC" }} vs {{ match.opponent }}</h4>
         <p>
@@ -16,8 +18,8 @@
     </div>
     {% if match.is_live %}
         <span class="match-score match-score--live">{{ match.home_score|default_if_none:0 }} - {{ match.away_score|default_if_none:0 }}</span>
-    {% elif match.is_played %}
-        <span class="match-score">{{ match.home_score }} - {{ match.away_score }}</span>
+    {% elif match.status == "FINISHED" %}
+        <span class="match-score">{{ match.home_score|default_if_none:"-" }} - {{ match.away_score|default_if_none:"-" }}</span>
     {% else %}
         <span class="match-tag {% if match.is_home %}match-tag--home{% else %}match-tag--away{% endif %}">
             {% if match.is_home %}HOME{% else %}AWAY{% endif %}

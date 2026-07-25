@@ -767,7 +767,7 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   padding: 18px 24px;
   background: var(--color-bg-alt);
   border-left: 4px solid var(--color-primary);
-  border-radius: 10px;
+  border-radius: 4px;
 }
 
 .match-row--result {
@@ -785,7 +785,7 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   min-width: 70px;
   padding: 8px 10px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 4px;
   color: var(--color-ink-soft);
 }
 
@@ -914,6 +914,26 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   letter-spacing: 1.5px;
   color: #ff2f4d;
   margin-bottom: 4px;
+}
+
+.finished-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+
+.finished-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-ink-soft);
+  flex-shrink: 0;
 }
 
 /* Thin, semi-transparent glowing outline to set a live match's row apart
