@@ -1,0 +1,48 @@
+{# Shared World Cup standings table. Expects: standings, variant ("compact"|"expanded") #}
+<table class="group-table group-table--{{ variant }}">
+    <thead>
+        <tr>
+            <th scope="col" class="col-pos">Pos</th>
+            <th scope="col" class="col-team">Team</th>
+            {% if variant == "expanded" %}
+            <th scope="col" title="Played">Pld</th>
+            <th scope="col" title="Won">W</th>
+            <th scope="col" title="Drawn">D</th>
+            <th scope="col" title="Lost">L</th>
+            <th scope="col" title="Goals for">GF</th>
+            <th scope="col" title="Goals against">GA</th>
+            <th scope="col" title="Goal difference">GD</th>
+            {% else %}
+            <th scope="col" title="Goal difference">GD</th>
+            {% endif %}
+            <th scope="col" class="col-pts" title="Points">Pts</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in standings %}
+        <tr class="{% if row.position <= 2 %}group-row--qualify{% endif %}{% if row.team.is_club %} group-row--club{% endif %}">
+            <td class="col-pos">
+                <span class="group-pos group-pos--{{ row.position }}">{{ row.position }}</span>
+            </td>
+            <td class="col-team">
+                <span class="group-team-name">{{ row.team.name }}</span>
+                {% if row.team.is_club and variant == "expanded" %}
+                <span class="group-club-mark">Gurkhali</span>
+                {% endif %}
+            </td>
+            {% if variant == "expanded" %}
+            <td>{{ row.team.played }}</td>
+            <td>{{ row.team.won }}</td>
+            <td>{{ row.team.drawn }}</td>
+            <td>{{ row.team.lost }}</td>
+            <td>{{ row.team.goals_for }}</td>
+            <td>{{ row.team.goals_against }}</td>
+            <td class="col-gd">{% if row.team.goal_difference > 0 %}+{% endif %}{{ row.team.goal_difference }}</td>
+            {% else %}
+            <td class="col-gd">{% if row.team.goal_difference > 0 %}+{% endif %}{{ row.team.goal_difference }}</td>
+            {% endif %}
+            <td class="col-pts"><span class="group-pts">{{ row.team.points }}</span></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -85,4 +85,71 @@ document.addEventListener("DOMContentLoaded", function () {
   if (openRegisterBtn && registerModal) {
     openRegisterBtn.addEventListener("click", registerModal.open);
   }
+
+  // Group standings: compact cards expand into a faded transparent overlay.
+  const groupOverlay = document.getElementById("group-table-overlay");
+  const groupCards = document.querySelectorAll(".group-card[data-group-target]");
+  const groupCloseBtn = document.getElementById("group-overlay-close");
+  let groupOverlayCloseTimer = null;
+
+  function hideAllGroupPanels() {
+    document.querySelectorAll("[data-group-panel]").forEach(function (panel) {
+      panel.hidden = true;
+    });
+  }
+
+  function closeGroupOverlay() {
+    if (!groupOverlay || !groupOverlay.classList.contains("is-open")) return;
+    groupOverlay.classList.add("is-closing");
+    document.body.classList.remove("group-overlay-open");
+    window.clearTimeout(groupOverlayCloseTimer);
+    groupOverlayCloseTimer = window.setTimeout(function () {
+      groupOverlay.classList.remove("is-open", "is-closing");
+      groupOverlay.style.display = "none";
+      groupOverlay.hidden = true;
+      hideAllGroupPanels();
+    }, 320);
+  }
+
+  function openGroupOverlay(panelId) {
+    if (!groupOverlay) return;
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    window.clearTimeout(groupOverlayCloseTimer);
+    hideAllGroupPanels();
+    panel.hidden = false;
+
+    groupOverlay.hidden = false;
+    groupOverlay.style.display = "flex";
+    // Force a frame so the opacity/transform transition plays.
+    groupOverlay.classList.remove("is-closing", "is-open");
+    void groupOverlay.offsetWidth;
+    groupOverlay.classList.add("is-open");
+    document.body.classList.add("group-overlay-open");
+  }
+
+  groupCards.forEach(function (card) {
+    card.addEventListener("click", function () {
+      openGroupOverlay(card.getAttribute("data-group-target"));
+    });
+  });
+
+  if (groupCloseBtn) {
+    groupCloseBtn.addEventListener("click", closeGroupOverlay);
+  }
+
+  if (groupOverlay) {
+    groupOverlay.addEventListener("click", function (event) {
+      if (event.target === groupOverlay) {
+        closeGroupOverlay();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && groupOverlay.classList.contains("is-open")) {
+        closeGroupOverlay();
+      }
+    });
+  }
 });

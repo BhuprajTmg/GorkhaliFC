@@ -87,13 +87,15 @@ def home(request):
     upcoming_matches = scheduled_matches[1:] if next_match else []
     past_matches = Match.objects.filter(status=Match.Status.FINISHED).order_by("-match_date")
 
-    # World Cup–format group table (four teams). Show the first active group.
-    competition_group = (
+    # World Cup–format group tables: up to four active groups shown as a
+    # compact interactive grid; each expands into a full standings view.
+    competition_groups = []
+    for group in (
         CompetitionGroup.objects.filter(is_active=True)
         .prefetch_related("teams")
-        .first()
-    )
-    group_standings = competition_group.standings() if competition_group else []
+        .order_by("name")[:4]
+    ):
+        competition_groups.append({"group": group, "standings": group.standings()})
 
     context = {
         "club": club,
@@ -103,8 +105,7 @@ def home(request):
         "next_match": next_match,
         "upcoming_matches": upcoming_matches,
         "past_matches": past_matches,
-        "competition_group": competition_group,
-        "group_standings": group_standings,
+        "competition_groups": competition_groups,
         "categories": GalleryCategory.objects.all(),
         "images": GalleryImage.objects.all(),
         "form": contact_form,

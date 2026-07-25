@@ -101,40 +101,65 @@ class Command(BaseCommand):
             status = "created" if created else "already existed"
             self.stdout.write(f"Fixture vs {opponent}: {status}")
 
-        # World Cup–format group of four (standings editable in admin).
-        group, group_created = CompetitionGroup.objects.get_or_create(
-            name="Group A",
-            defaults={
-                "season": "Darwin Cup 2026",
-                "is_active": True,
-            },
-        )
-        self.stdout.write(
-            f"Competition group {group.name}: "
-            f"{'created' if group_created else 'already existed'}"
-        )
-        group_teams = [
-            # name, is_club, P, W, D, L, GF, GA
-            ("Gurkhali FC", True, 3, 2, 1, 0, 7, 2),
-            ("Darwin FC", False, 3, 2, 0, 1, 5, 3),
-            ("Casuarina SC", False, 3, 1, 0, 2, 3, 5),
-            ("Palmerston FC", False, 3, 0, 1, 2, 2, 7),
-        ]
-        for name, is_club, played, won, drawn, lost, gf, ga in group_teams:
-            team, created = GroupTeam.objects.get_or_create(
-                group=group,
-                name=name,
+        # Four World Cup–format groups (compact grid on the site; editable
+        # under Competition groups in admin). Gurkhali FC sits in Group A.
+        demo_groups = {
+            "Group A": [
+                ("Gurkhali FC", True, 3, 2, 1, 0, 7, 2),
+                ("Darwin FC", False, 3, 2, 0, 1, 5, 3),
+                ("Casuarina SC", False, 3, 1, 0, 2, 3, 5),
+                ("Palmerston FC", False, 3, 0, 1, 2, 2, 7),
+            ],
+            "Group B": [
+                ("Nightcliff FC", False, 3, 2, 1, 0, 6, 2),
+                ("Mindil Beach SC", False, 3, 1, 2, 0, 4, 3),
+                ("Stuart Park United", False, 3, 1, 0, 2, 3, 5),
+                ("Larrakeyah FC", False, 3, 0, 1, 2, 1, 4),
+            ],
+            "Group C": [
+                ("Tiwi Islands FC", False, 3, 3, 0, 0, 8, 1),
+                ("Katherine Town", False, 3, 1, 1, 1, 4, 4),
+                ("Alice Springs SC", False, 3, 1, 0, 2, 3, 6),
+                ("Tennant Creek FC", False, 3, 0, 1, 2, 2, 6),
+            ],
+            "Group D": [
+                ("Port Darwin FC", False, 3, 2, 0, 1, 5, 3),
+                ("Fannie Bay Rovers", False, 3, 1, 2, 0, 4, 3),
+                ("Rapid Creek SC", False, 3, 1, 1, 1, 3, 3),
+                ("Wulagi Wanderers", False, 3, 0, 1, 2, 2, 5),
+            ],
+        }
+        for group_name, teams in demo_groups.items():
+            group, group_created = CompetitionGroup.objects.get_or_create(
+                name=group_name,
                 defaults={
-                    "is_club": is_club,
-                    "played": played,
-                    "won": won,
-                    "drawn": drawn,
-                    "lost": lost,
-                    "goals_for": gf,
-                    "goals_against": ga,
+                    "season": "Darwin Cup 2026",
+                    "is_active": True,
                 },
             )
-            status = "created" if created else "already existed"
-            self.stdout.write(f"Group team {team.name}: {status}")
+            # Ensure older single-group seeds still surface all four tables.
+            if not group.is_active:
+                group.is_active = True
+                group.save(update_fields=["is_active"])
+            self.stdout.write(
+                f"Competition group {group.name}: "
+                f"{'created' if group_created else 'already existed'}"
+            )
+            for name, is_club, played, won, drawn, lost, gf, ga in teams:
+                team, created = GroupTeam.objects.get_or_create(
+                    group=group,
+                    name=name,
+                    defaults={
+                        "is_club": is_club,
+                        "played": played,
+                        "won": won,
+                        "drawn": drawn,
+                        "lost": lost,
+                        "goals_for": gf,
+                        "goals_against": ga,
+                    },
+                )
+                status = "created" if created else "already existed"
+                self.stdout.write(f"  {team.name}: {status}")
 
         self.stdout.write(self.style.SUCCESS("Seed complete."))

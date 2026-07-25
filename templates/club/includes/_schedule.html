@@ -5,62 +5,80 @@
         <span class="accent-underline"></span>
 
         <div class="section-body">
-            {% if competition_group and group_standings %}
-            <div class="group-standings" id="table">
-                <div class="group-standings-banner">
-                    <div class="group-standings-banner-text">
-                        <p class="group-standings-kicker">Group standings</p>
-                        <h3 class="group-standings-name">{{ competition_group.name }}</h3>
-                        {% if competition_group.season %}
-                        <p class="group-standings-season">{{ competition_group.season }}</p>
-                        {% endif %}
+            {% if competition_groups %}
+            <div class="group-standings-section" id="table">
+                <div class="group-standings-intro">
+                    <div>
+                        <p class="group-standings-kicker">Tournament</p>
+                        <h3 class="group-standings-heading">Group <span class="text-accent">Tables</span></h3>
                     </div>
-                    <p class="group-standings-legend">
-                        <span class="group-qualify-mark" aria-hidden="true"></span>
-                        Top 2 advance
-                    </p>
+                    <p class="group-standings-hint">Click a group to expand the full standings</p>
                 </div>
 
-                <div class="group-table-wrap">
-                    <table class="group-table">
-                        <thead>
-                            <tr>
-                                <th scope="col" class="col-pos">Pos</th>
-                                <th scope="col" class="col-team">Team</th>
-                                <th scope="col" title="Played">Pld</th>
-                                <th scope="col" title="Won">W</th>
-                                <th scope="col" title="Drawn">D</th>
-                                <th scope="col" title="Lost">L</th>
-                                <th scope="col" title="Goals for">GF</th>
-                                <th scope="col" title="Goals against">GA</th>
-                                <th scope="col" title="Goal difference">GD</th>
-                                <th scope="col" class="col-pts" title="Points">Pts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in group_standings %}
-                            <tr class="{% if row.position <= 2 %}group-row--qualify{% endif %}{% if row.team.is_club %} group-row--club{% endif %}">
-                                <td class="col-pos">
-                                    <span class="group-pos group-pos--{{ row.position }}">{{ row.position }}</span>
-                                </td>
-                                <td class="col-team">
-                                    <span class="group-team-name">{{ row.team.name }}</span>
-                                    {% if row.team.is_club %}
-                                    <span class="group-club-mark">Gurkhali</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ row.team.played }}</td>
-                                <td>{{ row.team.won }}</td>
-                                <td>{{ row.team.drawn }}</td>
-                                <td>{{ row.team.lost }}</td>
-                                <td>{{ row.team.goals_for }}</td>
-                                <td>{{ row.team.goals_against }}</td>
-                                <td class="col-gd">{% if row.team.goal_difference > 0 %}+{% endif %}{{ row.team.goal_difference }}</td>
-                                <td class="col-pts"><span class="group-pts">{{ row.team.points }}</span></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="group-grid" id="group-grid">
+                    {% for item in competition_groups %}
+                    <button
+                        type="button"
+                        class="group-card"
+                        data-group-target="group-panel-{{ item.group.pk }}"
+                        aria-haspopup="dialog"
+                        aria-controls="group-table-overlay"
+                    >
+                        <div class="group-card-inner">
+                            <div class="group-card-banner">
+                                <span class="group-card-name">{{ item.group.name }}</span>
+                                {% if item.group.season %}
+                                <span class="group-card-season">{{ item.group.season }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="group-card-table">
+                                {% include "club/includes/_group_table.html" with standings=item.standings variant="compact" %}
+                            </div>
+                            <span class="group-card-cta">View full table</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div
+                id="group-table-overlay"
+                class="group-table-overlay"
+                style="display: none;"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Group standings"
+                hidden
+            >
+                <div class="group-table-overlay-panel">
+                    <button type="button" class="group-overlay-close" id="group-overlay-close" aria-label="Close standings">
+                        &times;
+                    </button>
+                    {% for item in competition_groups %}
+                    <div
+                        class="group-expanded-panel"
+                        id="group-panel-{{ item.group.pk }}"
+                        data-group-panel
+                        hidden
+                    >
+                        <div class="group-standings-banner">
+                            <div class="group-standings-banner-text">
+                                <p class="group-standings-kicker">Group standings</p>
+                                <h3 class="group-standings-name">{{ item.group.name }}</h3>
+                                {% if item.group.season %}
+                                <p class="group-standings-season">{{ item.group.season }}</p>
+                                {% endif %}
+                            </div>
+                            <p class="group-standings-legend">
+                                <span class="group-qualify-mark" aria-hidden="true"></span>
+                                Top 2 advance
+                            </p>
+                        </div>
+                        <div class="group-table-wrap">
+                            {% include "club/includes/_group_table.html" with standings=item.standings variant="expanded" %}
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
