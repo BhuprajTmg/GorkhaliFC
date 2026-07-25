@@ -2,7 +2,13 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
-from .models import ContactMessage, RegisteredPlayer, ROSTER_SIZE, TeamRegistration
+from .models import (
+    ContactMessage,
+    Match,
+    RegisteredPlayer,
+    ROSTER_SIZE,
+    TeamRegistration,
+)
 
 
 class ContactForm(forms.ModelForm):
@@ -93,3 +99,80 @@ RegisteredPlayerFormSet = inlineformset_factory(
     validate_max=True,
     can_delete=False,
 )
+
+
+class MatchAdminForm(forms.ModelForm):
+    """Home/Away pickers limited to Approved tournament registrations.
+
+    Pending, waitlisted, and rejected teams never appear in the dropdowns.
+    """
+
+    home_team = forms.ChoiceField(
+        choices=[],
+        label="Home team",
+        help_text="Approved registered teams only.",
+    )
+    away_team = forms.ChoiceField(
+        choices=[],
+        label="Away team",
+        help_text="Approved registered teams only.",
+    )
+
+    class Meta:
+        model = Match
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        approved = TeamRegistration.approved_team_names()
+        choices = [("", "---------")] + [(name, name) for name in approved]
+
+        # Keep a legacy/saved name selectable so existing fixtures remain editable
+        # even if that registration was later un-approved.
+        instance = kwargs.get("instance") or getattr(self, "instance", None)
+        if instance and instance.pk:
+            for field_name in ("home_team", "away_team"):
+                current = (getattr(instance, field_name, "") or "").strip()
+                if current and current not in approved:
+                    choices.append(
+                        (current, f"{current} (no longer approved)")
+                    )
+
+        self.fields["home_team"].choices = choices
+        self.fields["away_team"].choices = choices
+
+        if not approved:
+            self.fields["home_team"].help_text = (
+                "No approved teams yet — approve a registration first."
+            )
+            self.fields["away_team"].help_text = (
+                "No approved teams yet — approve a registration first."
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        home = (cleaned.get("home_team") or "").strip()
+        away = (cleaned.get("away_team") or "").strip()
+        approved = {name.lower() for name in TeamRegistration.approved_team_names()}
+
+        # Allow currently saved names through (legacy fixtures); block new picks
+        # that aren't approved.
+        instance = self.instance
+        for field_name, value in (("home_team", home), ("away_team", away)):
+            if not value:
+                continue
+            saved = (
+                (getattr(instance, field_name, "") or "").strip().lower()
+                if instance and instance.pk
+                else ""
+            )
+            if value.lower() not in approved and value.lower() != saved:
+                self.add_error(
+                    field_name,
+                    "Only teams with an Approved registration can be selected.",
+                )
+
+        if home and away and home.lower() == away.lower():
+            self.add_error("away_team", "Home and away teams must be different.")
+
+        return cleaned

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
+from .forms import MatchAdminForm
 from .models import (
     ClubInfo,
     CompetitionGroup,
@@ -79,6 +80,7 @@ class GalleryImageAdmin(admin.ModelAdmin):
 
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
+    form = MatchAdminForm
     list_display = (
         "fixture",
         "group",
@@ -101,9 +103,10 @@ class MatchAdmin(admin.ModelAdmin):
             {
                 "fields": ("home_team", "away_team", "group"),
                 "description": (
-                    "Schedule one match as Home vs Away. Pick the competition "
-                    "group so the final score updates that World Cup table. "
-                    "Team names must match the names in that group."
+                    "Home and Away are filled from Approved team registrations "
+                    "only (pending / waitlisted / rejected teams are hidden). "
+                    "After the lucky draw, pick the Group so the result updates "
+                    "that World Cup table — team names should match the group."
                 ),
             },
         ),

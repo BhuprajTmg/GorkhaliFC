@@ -10,6 +10,7 @@ from club.models import (
     GroupTeam,
     Match,
     Player,
+    TeamRegistration,
 )
 from club.standings import recalculate_all_group_standings
 
@@ -137,6 +138,34 @@ class Command(BaseCommand):
                     team.save(update_fields=["is_club"])
                 status = "created" if created else "already existed"
                 self.stdout.write(f"  {team.name}: {status}")
+
+        # Approved registrations drive the Match home/away dropdowns.
+        approved_demo_teams = sorted(
+            {
+                name
+                for teams in demo_groups.values()
+                for name, _is_club in teams
+            }
+        )
+        for team_name in approved_demo_teams:
+            reg, created = TeamRegistration.objects.get_or_create(
+                team_name=team_name,
+                tournament_name="Darwin Cup 2026",
+                defaults={
+                    "division": TeamRegistration.Division.OPEN_MENS,
+                    "manager_name": f"{team_name} Manager",
+                    "phone": "0400000000",
+                    "email": f"{slugify(team_name) or 'team'}@example.com",
+                    "agreed_to_rules": True,
+                    "status": TeamRegistration.Status.APPROVED,
+                    "home_city": "Darwin",
+                },
+            )
+            if reg.status != TeamRegistration.Status.APPROVED:
+                reg.status = TeamRegistration.Status.APPROVED
+                reg.save(update_fields=["status"])
+            status = "created" if created else "already existed"
+            self.stdout.write(f"Approved registration {team_name}: {status}")
 
         today = datetime.date.today()
         # Each row is one match: home vs away (two teams, one kickoff).

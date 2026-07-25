@@ -3,7 +3,8 @@ import datetime
 from django.test import TestCase
 from django.utils import timezone
 
-from club.models import ClubInfo, CompetitionGroup, GroupTeam, Match
+from club.forms import MatchAdminForm
+from club.models import ClubInfo, CompetitionGroup, GroupTeam, Match, TeamRegistration
 from club.schedule import FINISHED_VISIBLE_MINUTES, build_match_schedule
 from club.standings import recalculate_group_standings
 
@@ -191,3 +192,46 @@ class GroupStandingsSyncTests(TestCase):
         recalculate_group_standings(self.group)
         self.gurkhali.refresh_from_db()
         self.assertEqual(self.gurkhali.played, 0)
+
+
+class ApprovedTeamDropdownTests(TestCase):
+    def _reg(self, name, status):
+        return TeamRegistration.objects.create(
+            tournament_name="Darwin Cup 2026",
+            team_name=name,
+            manager_name="Manager",
+            phone="0400000000",
+            email=f"{name.replace(' ', '').lower()}@example.com",
+            agreed_to_rules=True,
+            status=status,
+        )
+
+    def test_only_approved_names_listed(self):
+        self._reg("Darwin FC", TeamRegistration.Status.APPROVED)
+        self._reg("Casuarina SC", TeamRegistration.Status.PENDING)
+        self._reg("Palmerston FC", TeamRegistration.Status.WAITLISTED)
+        self._reg("Nightcliff FC", TeamRegistration.Status.REJECTED)
+        self._reg("Gurkhali FC", TeamRegistration.Status.APPROVED)
+
+        names = TeamRegistration.approved_team_names()
+        self.assertEqual(names, ["Darwin FC", "Gurkhali FC"])
+
+        form = MatchAdminForm()
+        choice_values = [value for value, label in form.fields["home_team"].choices if value]
+        self.assertEqual(choice_values, ["Darwin FC", "Gurkhali FC"])
+        self.assertNotIn("Casuarina SC", choice_values)
+        self.assertNotIn("Palmerston FC", choice_values)
+        self.assertNotIn("Nightcliff FC", choice_values)
+
+    def test_form_rejects_unapproved_team(self):
+        self._reg("Darwin FC", TeamRegistration.Status.APPROVED)
+        form = MatchAdminForm(
+            data={
+                "home_team": "Darwin FC",
+                "away_team": "Random FC",
+                "match_date": "2026-08-01",
+                "status": Match.Status.SCHEDULED,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("away_team", form.errors)

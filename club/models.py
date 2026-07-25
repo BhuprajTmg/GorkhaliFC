@@ -124,11 +124,13 @@ class Match(models.Model):
 
     home_team = models.CharField(
         max_length=120,
-        help_text="Home side. Must match a group team name for table sync.",
+        help_text="Chosen from Approved registrations. Must match a group "
+        "team name for table sync after the lucky draw.",
     )
     away_team = models.CharField(
         max_length=120,
-        help_text="Away side. Must match a group team name for table sync.",
+        help_text="Chosen from Approved registrations. Must match a group "
+        "team name for table sync after the lucky draw.",
     )
     group = models.ForeignKey(
         "CompetitionGroup",
@@ -440,6 +442,17 @@ class TeamRegistration(models.Model):
 
     def __str__(self):
         return f"{self.team_name} — {self.tournament_name}"
+
+    @classmethod
+    def approved_team_names(cls):
+        """Distinct team names from Approved registrations only (for fixtures)."""
+        return list(
+            cls.objects.filter(status=cls.Status.APPROVED)
+            .exclude(team_name="")
+            .order_by("team_name")
+            .values_list("team_name", flat=True)
+            .distinct()
+        )
 
     def refresh_player_count(self):
         """Recomputes player_count from named roster rows and saves it."""
