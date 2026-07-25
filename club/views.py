@@ -101,6 +101,7 @@ def home(request):
         "next_match": schedule["next_match"],
         "upcoming_matches": schedule["upcoming_matches"],
         "knockout_rounds": schedule["knockout_rounds"],
+        "knockout_bracket": schedule["knockout_bracket"],
         "past_matches": schedule["past_matches"],
         "finished_visible_minutes": schedule["finished_visible_minutes"],
         "competition_groups": competition_groups,

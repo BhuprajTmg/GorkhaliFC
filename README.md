@@ -30,9 +30,10 @@ with the nav bar linking to in-page sections via anchors
   - Matches marked **Finished** (with a final score) appear under
     Results for **5 minutes**, then disappear. Finishing a match also
     syncs that score into the matching World Cup group table.
-  - Up to four World Cup–format **group tables** in a compact interactive
-    grid (hover to lift, click to expand the full standings in a faded
-    overlay). Edit groups/teams under **Competition groups** in the admin.
+  - A visual **knockout bracket** (Quarter-finals → Semi-finals → Final)
+    fills the main schedule stage. **Group tables** stay available from a
+    side **Tables** button that opens a tabbed standings drawer. Edit
+    groups/teams under **Competition groups** in the admin.
 - **Register** — a "Register Your Team" button that opens a floating,
   semi-transparent form overlay (doesn't take up space on the page until
   clicked) with: team name, division, manager/coach contact, plus a

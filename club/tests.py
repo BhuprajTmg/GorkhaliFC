@@ -22,7 +22,11 @@ from club.models import (
     Match,
     TeamRegistration,
 )
-from club.schedule import FINISHED_VISIBLE_MINUTES, build_match_schedule
+from club.schedule import (
+    FINISHED_VISIBLE_MINUTES,
+    build_knockout_bracket_display,
+    build_match_schedule,
+)
 from club.standings import recalculate_group_standings
 
 
@@ -80,6 +84,59 @@ class MatchScheduleTests(TestCase):
 
         self.assertIn(recent.pk, past_ids)
         self.assertNotIn(stale.pk, past_ids)
+
+    def test_schedule_includes_knockout_bracket_tree(self):
+        schedule = build_match_schedule()
+        self.assertIn("knockout_bracket", schedule)
+        self.assertIn("columns", schedule["knockout_bracket"])
+
+
+class KnockoutBracketDisplayTests(TestCase):
+    def setUp(self):
+        ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        for letter in "ABCD":
+            group = CompetitionGroup.objects.create(
+                name=f"Group {letter}",
+                season="Darwin Cup 2026",
+                is_active=True,
+            )
+            for i in range(1, 5):
+                GroupTeam.objects.create(
+                    group=group,
+                    name=f"{letter}{i}",
+                    played=3,
+                    won=4 - i,
+                    drawn=0,
+                    lost=i - 1,
+                    goals_for=10 - i,
+                    goals_against=i,
+                )
+
+    def test_preview_shows_qf_sf_final_columns(self):
+        bracket = build_knockout_bracket_display()
+        stages = [col["stage"] for col in bracket["columns"]]
+        self.assertEqual(
+            stages,
+            [Match.Stage.QF, Match.Stage.SF, Match.Stage.FINAL],
+        )
+        self.assertEqual(len(bracket["columns"][0]["slots"]), 4)
+        self.assertTrue(bracket["columns"][0]["slots"][0]["is_placeholder"])
+
+    def test_real_qf_fixtures_appear_in_bracket(self):
+        Match.objects.create(
+            home_team="A1",
+            away_team="B2",
+            stage=Match.Stage.QF,
+            bracket_order=1,
+            match_date=datetime.date(2026, 8, 20),
+            status=Match.Status.SCHEDULED,
+        )
+        bracket = build_knockout_bracket_display()
+        qf = bracket["columns"][0]
+        self.assertEqual(qf["stage"], Match.Stage.QF)
+        self.assertFalse(qf["slots"][0]["is_placeholder"])
+        self.assertEqual(qf["slots"][0]["home"], "A1")
+        self.assertTrue(bracket["has_fixtures"])
 
 
 class GroupStandingsSyncTests(TestCase):

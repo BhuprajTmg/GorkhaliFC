@@ -86,15 +86,22 @@ document.addEventListener("DOMContentLoaded", function () {
     openRegisterBtn.addEventListener("click", registerModal.open);
   }
 
-  // Group standings: compact cards expand into a faded transparent overlay.
+  // Group standings drawer: side "Tables" button opens tabbed overlay.
   const groupOverlay = document.getElementById("group-table-overlay");
-  const groupCards = document.querySelectorAll(".group-card[data-group-target]");
+  const openGroupTablesBtn = document.getElementById("open-group-tables");
   const groupCloseBtn = document.getElementById("group-overlay-close");
+  const groupTabs = document.querySelectorAll("[data-group-tab]");
   let groupOverlayCloseTimer = null;
 
-  function hideAllGroupPanels() {
-    document.querySelectorAll("[data-group-panel]").forEach(function (panel) {
-      panel.hidden = true;
+  function setActiveGroupTab(panelId) {
+    const panels = document.querySelectorAll("[data-group-panel]");
+    panels.forEach(function (panel) {
+      panel.hidden = panel.id !== panelId;
+    });
+    groupTabs.forEach(function (tab) {
+      const active = tab.getAttribute("data-group-tab") === panelId;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
     });
   }
 
@@ -107,31 +114,35 @@ document.addEventListener("DOMContentLoaded", function () {
       groupOverlay.classList.remove("is-open", "is-closing");
       groupOverlay.style.display = "none";
       groupOverlay.hidden = true;
-      hideAllGroupPanels();
     }, 320);
   }
 
   function openGroupOverlay(panelId) {
     if (!groupOverlay) return;
-    const panel = document.getElementById(panelId);
-    if (!panel) return;
+    const firstPanel = document.querySelector("[data-group-panel]");
+    const targetId = panelId || (firstPanel && firstPanel.id);
+    if (!targetId) return;
 
     window.clearTimeout(groupOverlayCloseTimer);
-    hideAllGroupPanels();
-    panel.hidden = false;
+    setActiveGroupTab(targetId);
 
     groupOverlay.hidden = false;
     groupOverlay.style.display = "flex";
-    // Force a frame so the opacity/transform transition plays.
     groupOverlay.classList.remove("is-closing", "is-open");
     void groupOverlay.offsetWidth;
     groupOverlay.classList.add("is-open");
     document.body.classList.add("group-overlay-open");
   }
 
-  groupCards.forEach(function (card) {
-    card.addEventListener("click", function () {
-      openGroupOverlay(card.getAttribute("data-group-target"));
+  if (openGroupTablesBtn) {
+    openGroupTablesBtn.addEventListener("click", function () {
+      openGroupOverlay();
+    });
+  }
+
+  groupTabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      setActiveGroupTab(tab.getAttribute("data-group-tab"));
     });
   });
 

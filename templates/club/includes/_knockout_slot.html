@@ -1,0 +1,40 @@
+<article
+    class="bracket-match{% if slot.is_live %} bracket-match--live{% elif slot.is_finished %} bracket-match--done{% endif %}{% if slot.is_placeholder %} bracket-match--tbd{% endif %}"
+>
+    <div class="bracket-match-teams">
+        <div class="bracket-team{% if slot.is_finished and slot.home_score is not None and slot.away_score is not None and slot.home_score > slot.away_score %} bracket-team--winner{% endif %}">
+            <span class="bracket-team-name">{{ slot.home }}</span>
+            <span class="bracket-team-score">
+                {% if slot.is_live or slot.is_finished %}
+                    {{ slot.home_score|default_if_none:"0" }}
+                {% else %}
+                    —
+                {% endif %}
+            </span>
+        </div>
+        <div class="bracket-team{% if slot.is_finished and slot.home_score is not None and slot.away_score is not None and slot.away_score > slot.home_score %} bracket-team--winner{% endif %}">
+            <span class="bracket-team-name">{{ slot.away }}</span>
+            <span class="bracket-team-score">
+                {% if slot.is_live or slot.is_finished %}
+                    {{ slot.away_score|default_if_none:"0" }}
+                {% else %}
+                    —
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    <div class="bracket-match-meta">
+        {% if slot.is_live %}
+        <span class="bracket-pill bracket-pill--live"><span class="live-dot"></span>Live</span>
+        {% elif slot.is_finished %}
+        <span class="bracket-pill bracket-pill--done">FT</span>
+        {% elif slot.stage_badge %}
+        <span class="bracket-pill">{{ slot.stage_badge }}</span>
+        {% endif %}
+        {% if slot.match_date %}
+        <span class="bracket-meta-text">{{ slot.match_date|date:"d M" }}{% if slot.match_time %} · {{ slot.match_time|time:"g:i A" }}{% endif %}</span>
+        {% elif slot.is_placeholder %}
+        <span class="bracket-meta-text">Awaiting fixture</span>
+        {% endif %}
+    </div>
+</article>
