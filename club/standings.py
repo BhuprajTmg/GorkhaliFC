@@ -32,6 +32,8 @@ def _empty_stats():
 
 
 def _match_counts_for_group(match, group, by_name):
+    if getattr(match, "stage", Match.Stage.GROUP) != Match.Stage.GROUP:
+        return False
     if match.group_id == group.pk:
         return True
     home = by_name.get(match.home_team.strip().lower())
@@ -50,6 +52,7 @@ def recalculate_group_standings(group):
 
     finished_matches = Match.objects.filter(
         status=Match.Status.FINISHED,
+        stage=Match.Stage.GROUP,
         home_score__isnull=False,
         away_score__isnull=False,
     )

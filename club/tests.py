@@ -8,6 +8,7 @@ from club.group_fixtures import (
     generate_group_stage_fixtures,
     world_cup_group_rounds,
 )
+from club.knockout import generate_knockout_bracket, qualifiers_from_groups
 from club.models import ClubInfo, CompetitionGroup, GroupTeam, Match, TeamRegistration
 from club.schedule import FINISHED_VISIBLE_MINUTES, build_match_schedule
 from club.standings import recalculate_group_standings
@@ -296,6 +297,53 @@ class WorldCupFixtureGeneratorTests(TestCase):
         result = generate_group_stage_fixtures(empty)
         self.assertEqual(result.created, [])
         self.assertTrue(result.errors)
+
+
+class KnockoutBracketTests(TestCase):
+    def setUp(self):
+        ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        self.groups = []
+        for letter, teams in [
+            ("A", ["A1", "A2", "A3", "A4"]),
+            ("B", ["B1", "B2", "B3", "B4"]),
+            ("C", ["C1", "C2", "C3", "C4"]),
+            ("D", ["D1", "D2", "D3", "D4"]),
+        ]:
+            group = CompetitionGroup.objects.create(
+                name=f"Group {letter}", season="Cup", is_active=True
+            )
+            for index, name in enumerate(teams):
+                GroupTeam.objects.create(
+                    group=group,
+                    name=name,
+                    played=3,
+                    won=3 - index,
+                    drawn=0,
+                    lost=index,
+                    goals_for=6 - index,
+                    goals_against=index,
+                )
+            self.groups.append(group)
+
+    def test_qualifiers_top_two(self):
+        q = qualifiers_from_groups(self.groups)
+        self.assertEqual(q["1A"], "A1")
+        self.assertEqual(q["2A"], "A2")
+        self.assertEqual(q["1B"], "B1")
+
+    def test_generate_knockout_creates_qf_sf_final(self):
+        result = generate_knockout_bracket(
+            start_date=datetime.date(2026, 9, 1), include_third_place=True
+        )
+        self.assertFalse(result.errors, result.errors)
+        stages = {m.stage for m in result.created}
+        self.assertIn(Match.Stage.QF, stages)
+        self.assertIn(Match.Stage.SF, stages)
+        self.assertIn(Match.Stage.FINAL, stages)
+        self.assertIn(Match.Stage.THIRD, stages)
+        self.assertEqual(
+            Match.objects.filter(stage=Match.Stage.QF).count(), 4
+        )
 
 
 class GroupFilteredMatchDropdownTests(TestCase):

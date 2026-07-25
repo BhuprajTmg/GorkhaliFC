@@ -11,8 +11,15 @@
         style="background: #d81e3f; border-color: #d81e3f;"
         onclick="return confirm('Create round-robin group-stage matches for every team in this group? Existing pairings will be skipped.');"
     >
+    <input
+        type="submit"
+        value="Generate knockout bracket (all groups)"
+        name="_generate_knockout"
+        style="background: #a8710a; border-color: #a8710a;"
+        onclick="return confirm('Build the World Cup knockout from current standings of ALL active groups (top 2 each)? Existing knockout slots are skipped.');"
+    >
     <p style="margin: 8px 0 0; color: var(--body-quiet-color, #999); font-size: 12px;">
-        For 4 teams this creates 6 matches (3 matchdays). Safe to run again — duplicates are skipped.
+        Group stage: 6 matches for 4 teams. Knockout: QF→SF→Final from every active group’s top 2.
     </p>
 </div>
 {% endif %}

@@ -5,6 +5,7 @@ from django.utils.html import format_html
 
 from .forms import GroupTeamAdminForm, MatchAdminForm, team_names_for_group
 from .group_fixtures import generate_group_stage_fixtures
+from .knockout import advance_knockout_winners, generate_knockout_bracket
 from .models import (
     ClubInfo,
     CompetitionGroup,
@@ -106,7 +107,9 @@ class MatchAdmin(admin.ModelAdmin):
     form = MatchAdminForm
     list_display = (
         "fixture",
+        "stage",
         "group",
+        "bracket_order",
         "match_date",
         "match_time",
         "status",
@@ -115,26 +118,42 @@ class MatchAdmin(admin.ModelAdmin):
         "away_score",
         "finished_at",
     )
-    list_editable = ("status", "home_score", "away_score", "group")
-    list_filter = (GroupNameListFilter, "status", "group")
+    list_editable = ("status", "home_score", "away_score", "stage", "bracket_order")
+    list_filter = (GroupNameListFilter, "stage", "status", "group")
     search_fields = (
         "home_team",
         "away_team",
         "venue",
         "group__name",
         "group__season",
+        "notes",
     )
     readonly_fields = ("finished_at",)
     date_hierarchy = "match_date"
+    actions = (
+        "action_generate_knockout_bracket",
+        "action_advance_knockout_winners",
+    )
     fieldsets = (
+        (
+            "Stage",
+            {
+                "fields": ("stage", "bracket_order"),
+                "description": (
+                    "Use Group stage for lucky-draw groups. Use QF / SF / Final "
+                    "for the World Cup knockout. Actions below can generate the "
+                    "full knockout bracket from group standings."
+                ),
+            },
+        ),
         (
             "Fixture",
             {
                 "fields": ("group", "home_team", "away_team"),
                 "description": (
-                    "1) Select the Group (after the lucky draw). "
-                    "2) Home and Away dropdowns then show only teams in that "
-                    "group."
+                    "Group stage: pick Group first, then Home/Away from that "
+                    "group. Knockout: leave Group empty; team names can be "
+                    "real clubs or Winner/Loser placeholders."
                 ),
             },
         ),
@@ -144,8 +163,9 @@ class MatchAdmin(admin.ModelAdmin):
             {
                 "fields": ("status", "home_score", "away_score", "finished_at", "notes"),
                 "description": (
-                    "Fill in BOTH scores, then set status to Finished. The "
-                    "group table recalculates automatically."
+                    "Fill in BOTH scores, then set status to Finished. "
+                    "Group-stage results update the table; knockout results "
+                    "can be advanced with the 'Advance knockout winners' action."
                 ),
             },
         ),
@@ -173,6 +193,37 @@ class MatchAdmin(admin.ModelAdmin):
     @admin.display(description="Match")
     def fixture(self, obj):
         return f"{obj.home_team} vs {obj.away_team}"
+
+    @admin.action(description="Generate World Cup knockout bracket from group standings")
+    def action_generate_knockout_bracket(self, request, queryset):
+        # Selection is ignored — bracket is built from all active groups.
+        result = generate_knockout_bracket()
+        for error in result.errors:
+            self.message_user(request, error, level=messages.ERROR)
+        if result.created:
+            self.message_user(
+                request,
+                f"Created {len(result.created)} knockout fixture(s).",
+                level=messages.SUCCESS,
+            )
+        if result.skipped:
+            self.message_user(
+                request,
+                f"Skipped {len(result.skipped)} existing knockout slot(s).",
+                level=messages.WARNING,
+            )
+
+    @admin.action(description="Advance knockout winners into the next round")
+    def action_advance_knockout_winners(self, request, queryset):
+        result = advance_knockout_winners()
+        for error in result.errors:
+            self.message_user(request, error, level=messages.WARNING)
+        if result.advanced:
+            self.message_user(
+                request,
+                "Advanced: " + "; ".join(result.advanced),
+                level=messages.SUCCESS,
+            )
 
 
 class GroupTeamInline(admin.TabularInline):
@@ -253,6 +304,23 @@ class CompetitionGroupAdmin(admin.ModelAdmin):
             # response_change runs after successful save, so teams are current.
             result = generate_group_stage_fixtures(obj)
             self._report_fixture_result(request, obj, result)
+            return HttpResponseRedirect(request.path)
+        if "_generate_knockout" in request.POST:
+            result = generate_knockout_bracket()
+            for error in result.errors:
+                self.message_user(request, error, level=messages.ERROR)
+            if result.created:
+                self.message_user(
+                    request,
+                    f"Knockout: created {len(result.created)} fixture(s).",
+                    level=messages.SUCCESS,
+                )
+            if result.skipped:
+                self.message_user(
+                    request,
+                    f"Knockout: skipped {len(result.skipped)} existing slot(s).",
+                    level=messages.WARNING,
+                )
             return HttpResponseRedirect(request.path)
         return super().response_change(request, obj)
 

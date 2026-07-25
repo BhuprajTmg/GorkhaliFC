@@ -1,5 +1,5 @@
 <div
-    class="match-row {% if match.is_live %}match-row--live{% elif match.status == "FINISHED" %}match-row--result{% endif %}"
+    class="match-row {% if match.is_live %}match-row--live{% elif match.status == "FINISHED" %}match-row--result{% endif %}{% if match.is_knockout %} match-row--knockout{% endif %}"
     {% if match.status == "FINISHED" and match.finished_at %}
     data-finished-at="{{ match.finished_at|date:'c' }}"
     data-finished-visible-minutes="{{ finished_visible_minutes|default:5 }}"
@@ -10,28 +10,40 @@
         <span class="match-date-day">{{ match.match_date|date:"d" }}</span>
         <span class="match-date-year">{{ match.match_date|date:"Y" }}</span>
     </div>
+
     <div class="match-info">
         {% if match.is_live %}
         <div class="live-badge"><span class="live-dot"></span>LIVE</div>
         {% elif match.status == "FINISHED" %}
         <div class="finished-badge"><span class="finished-dot"></span>FINISHED</div>
+        {% elif match.is_knockout %}
+        <div class="knockout-badge">{{ match.get_stage_display }}</div>
         {% endif %}
-        <h4>{{ match.home_team }} vs {{ match.away_team }}</h4>
-        <p>
-            {% if match.group %}<span class="match-group-label">{{ match.group.name }}</span>{% if match.venue or match.match_time %} &bull; {% endif %}{% endif %}
-            {% if match.venue %}{{ match.venue }}{% if match.match_time %} &bull; {% endif %}{% endif %}
-            {% if match.match_time %}{{ match.match_time|time:"g:i A" }}{% endif %}
+        <h4>
+            <span class="match-team">{{ match.home_team }}</span>
+            <span class="match-vs">vs</span>
+            <span class="match-team">{{ match.away_team }}</span>
+        </h4>
+        <p class="match-meta">
+            {% if match.venue %}<span>{{ match.venue }}</span>{% endif %}
+            {% if match.venue and match.match_time %}<span class="match-meta-dot" aria-hidden="true"></span>{% endif %}
+            {% if match.match_time %}<span>{{ match.match_time|time:"g:i A" }}</span>{% endif %}
         </p>
     </div>
-    {% if match.is_live %}
-        <span class="match-score match-score--live">{{ match.home_score|default_if_none:0 }} - {{ match.away_score|default_if_none:0 }}</span>
-    {% elif match.status == "FINISHED" %}
-        <span class="match-score">{{ match.home_score|default_if_none:"-" }} - {{ match.away_score|default_if_none:"-" }}</span>
-    {% elif match.involves_club %}
-        <span class="match-tag {% if match.is_club_home %}match-tag--home{% else %}match-tag--away{% endif %}">
-            {% if match.is_club_home %}HOME{% else %}AWAY{% endif %}
+
+    <div class="match-end">
+        {% if match.is_live %}
+            <span class="match-score match-score--live">{{ match.home_score|default_if_none:0 }}–{{ match.away_score|default_if_none:0 }}</span>
+        {% elif match.status == "FINISHED" %}
+            <span class="match-score">{{ match.home_score|default_if_none:"-" }}–{{ match.away_score|default_if_none:"-" }}</span>
+        {% elif match.involves_club %}
+            <span class="match-tag {% if match.is_club_home %}match-tag--home{% else %}match-tag--away{% endif %}">
+                {% if match.is_club_home %}HOME{% else %}AWAY{% endif %}
+            </span>
+        {% endif %}
+
+        <span class="match-stage-chip {% if match.is_knockout %}match-stage-chip--knockout{% else %}match-stage-chip--group{% endif %}">
+            {{ match.stage_badge }}
         </span>
-    {% else %}
-        <span class="match-tag match-tag--group">GROUP</span>
-    {% endif %}
+    </div>
 </div>

@@ -225,11 +225,11 @@ Everything editable lives in the Django admin (`/admin/`):
   ground, location, contact details, social links.
 - **Players** — name, position, jersey number, photo, bio, captain flag,
   display order.
-- **Matches** — one row = one fixture: pick **Group** first (after the
-  lucky draw), then **Home / Away** dropdowns show only teams in that
-  group. Set Status to "Live now" on match day, fill **both** scores,
-  then set **Finished** to show the result briefly and update that
-  group's standings table.
+- **Matches** — group stage: pick **Group**, then Home/Away from that
+  group. Knockout: set **Stage** to QF/SF/Final (or use admin actions to
+  **Generate World Cup knockout bracket** from group standings and
+  **Advance knockout winners**). Finish matches with both scores to sync
+  tables / progress the bracket.
 - **Competition groups** — World Cup–style groups of up to four teams
   each. After the lucky draw, add teams to a group, then click
   **Generate World Cup fixtures** (or use the changelist action) to

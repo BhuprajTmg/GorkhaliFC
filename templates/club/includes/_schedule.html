@@ -110,7 +110,19 @@
             </div>
             {% endif %}
 
-            {% if not live_matches and not next_match and not upcoming_matches %}
+            {% if knockout_rounds %}
+            <h3 class="results-title">Knockout</h3>
+            {% for round in knockout_rounds %}
+            <h4 class="schedule-subtitle">{{ round.label }}</h4>
+            <div class="match-list">
+                {% for match in round.matches %}
+                    {% include "club/includes/_match_row.html" with match=match %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% if not live_matches and not next_match and not upcoming_matches and not knockout_rounds %}
             <p class="empty-state">No fixtures scheduled yet. Add matches from the Django admin.</p>
             {% endif %}
 
@@ -123,7 +135,7 @@
             </div>
             {% endif %}
 
-            <p class="schedule-note">&#9888; Showing the next 5 fixtures. In admin, schedule each game as Home vs Away, enter both scores, set Finished — the group table updates and the result stays on screen for 5 minutes.</p>
+            <p class="schedule-note">&#9888; Next 5 group fixtures shown. Knockout rounds appear below. Finish a match in admin to sync group tables (group stage) or advance the bracket (knockout).</p>
         </div>
     </div>
 </section>

@@ -113,8 +113,10 @@ class GalleryImage(models.Model):
 
 
 class Match(models.Model):
-    """One fixture between two teams (home vs away), optionally linked to a
-    competition group so the final score updates that group's standings.
+    """One fixture between two teams (home vs away).
+
+    Group-stage matches link to a CompetitionGroup (table sync). Knockout
+    matches use ``stage`` (QF / SF / Final, etc.) like the World Cup.
     """
 
     class Status(models.TextChoices):
@@ -122,15 +124,21 @@ class Match(models.Model):
         LIVE = "LIVE", "Live now"
         FINISHED = "FINISHED", "Finished"
 
+    class Stage(models.TextChoices):
+        GROUP = "GROUP", "Group stage"
+        R16 = "R16", "Round of 16"
+        QF = "QF", "Quarter-finals"
+        SF = "SF", "Semi-finals"
+        THIRD = "THIRD", "Third-place play-off"
+        FINAL = "FINAL", "Final"
+
     home_team = models.CharField(
         max_length=120,
-        help_text="Chosen from Approved registrations. Must match a group "
-        "team name for table sync after the lucky draw.",
+        help_text="Home side. For group games, pick from the group's teams.",
     )
     away_team = models.CharField(
         max_length=120,
-        help_text="Chosen from Approved registrations. Must match a group "
-        "team name for table sync after the lucky draw.",
+        help_text="Away side. For group games, pick from the group's teams.",
     )
     group = models.ForeignKey(
         "CompetitionGroup",
@@ -138,8 +146,18 @@ class Match(models.Model):
         related_name="matches",
         blank=True,
         null=True,
-        help_text="Which World Cup group table this result updates. "
-        "Both teams are added to the group automatically when you save.",
+        help_text="Group stage only — which World Cup group table this "
+        "result updates. Leave empty for knockout matches.",
+    )
+    stage = models.CharField(
+        max_length=10,
+        choices=Stage.choices,
+        default=Stage.GROUP,
+        help_text="Group stage or knockout round (World Cup format).",
+    )
+    bracket_order = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Order within a knockout round (1 = first match, etc.).",
     )
     match_date = models.DateField()
     match_time = models.TimeField(blank=True, null=True)
@@ -161,11 +179,13 @@ class Match(models.Model):
     notes = models.CharField(max_length=200, blank=True)
 
     class Meta:
-        ordering = ["match_date", "match_time"]
+        ordering = ["match_date", "match_time", "bracket_order"]
         verbose_name_plural = "Matches"
 
     def __str__(self):
-        return f"{self.home_team} vs {self.away_team} ({self.match_date})"
+        label = self.get_stage_display() if self.stage != self.Stage.GROUP else ""
+        base = f"{self.home_team} vs {self.away_team} ({self.match_date})"
+        return f"{label}: {base}" if label else base
 
     @property
     def is_played(self):
@@ -174,6 +194,23 @@ class Match(models.Model):
     @property
     def is_live(self):
         return self.status == self.Status.LIVE
+
+    @property
+    def is_knockout(self):
+        return self.stage != self.Stage.GROUP
+
+    @property
+    def stage_badge(self):
+        """Short label for the public match card end-badge."""
+        if self.stage == self.Stage.GROUP:
+            return self.group.name if self.group_id else "Group"
+        return {
+            self.Stage.R16: "R16",
+            self.Stage.QF: "QF",
+            self.Stage.SF: "SF",
+            self.Stage.THIRD: "3rd",
+            self.Stage.FINAL: "Final",
+        }.get(self.stage, self.get_stage_display())
 
     @property
     def club_name(self):
@@ -191,6 +228,20 @@ class Match(models.Model):
     @property
     def is_club_home(self):
         return self.home_team.strip().lower() == self.club_name.strip().lower()
+
+    @property
+    def winner(self):
+        if (
+            self.status != self.Status.FINISHED
+            or self.home_score is None
+            or self.away_score is None
+        ):
+            return None
+        if self.home_score > self.away_score:
+            return self.home_team
+        if self.away_score > self.home_score:
+            return self.away_team
+        return None  # draw — rare in knockout without pens
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -241,15 +292,18 @@ class Match(models.Model):
         else:
             self.finished_at = None
 
-        # Auto-attach the group when both teams already sit in the same one.
-        if not self.group_id and self.home_team and self.away_team:
+        # Knockout fixtures are not tied to a group table.
+        if self.stage != self.Stage.GROUP:
+            self.group = None
+        elif not self.group_id and self.home_team and self.away_team:
+            # Auto-attach the group when both teams already sit in the same one.
             self.group = self._detect_shared_group()
 
         super().save(*args, **kwargs)
 
         # After lucky draw: picking a Group on the fixture places both teams
         # into that group's table automatically (using the registration names).
-        if self.group_id:
+        if self.stage == self.Stage.GROUP and self.group_id:
             self._ensure_teams_in_group()
 
         from .standings import sync_standings_after_match

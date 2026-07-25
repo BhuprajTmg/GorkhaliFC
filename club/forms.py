@@ -129,25 +129,16 @@ RegisteredPlayerFormSet = inlineformset_factory(
 
 
 class MatchAdminForm(forms.ModelForm):
-    """Group-first fixture form: Home/Away list only teams in that group."""
+    """Fixture form: group-filtered teams for group stage; free text for knockout."""
 
     group = forms.ModelChoiceField(
         queryset=CompetitionGroup.objects.all(),
-        required=True,
-        empty_label="--------- Select a group first ---------",
-        help_text="Pick the group from the lucky draw first. Home/Away then "
-        "only show teams assigned to that group.",
+        required=False,
+        empty_label="--------- Select a group (group stage) ---------",
+        help_text="Required for group stage. Leave empty for knockout matches.",
     )
-    home_team = forms.ChoiceField(
-        choices=[],
-        label="Home team",
-        help_text="Teams currently in the selected group.",
-    )
-    away_team = forms.ChoiceField(
-        choices=[],
-        label="Away team",
-        help_text="Teams currently in the selected group.",
-    )
+    home_team = forms.CharField(label="Home team", max_length=120)
+    away_team = forms.CharField(label="Away team", max_length=120)
 
     class Meta:
         model = Match
@@ -165,77 +156,98 @@ class MatchAdminForm(forms.ModelForm):
         except NoReverseMatch:
             pass
 
+        stage = self._resolve_stage()
         group = self._resolve_group()
-        team_names = team_names_for_group(group)
-
-        # Keep currently saved names available when editing, even if the team
-        # was later removed from the group.
         instance = self.instance if getattr(self.instance, "pk", None) else None
-        extras = []
-        if instance:
-            for value in (instance.home_team, instance.away_team):
-                if value and value not in team_names:
-                    extras.append(value)
 
-        if group:
-            choices = [("", "---------")] + [(name, name) for name in team_names]
-            for name in extras:
-                choices.append((name, f"{name} (not in this group anymore)"))
-            tip = "Teams currently in the selected group."
-        else:
-            choices = [("", "--------- Select a group first ---------")]
-            tip = "Select a group first to load its teams."
-
-        self.fields["home_team"].choices = choices
-        self.fields["away_team"].choices = choices
-        self.fields["home_team"].help_text = tip
-        self.fields["away_team"].help_text = tip
-
-        if group and not team_names:
-            empty_tip = (
-                "This group has no teams yet — add them under Competition "
-                "groups after the lucky draw."
+        # Group stage: constrain Home/Away to the selected group's teams.
+        # Knockout: keep plain text inputs (placeholders like "Winner QF1" allowed).
+        if stage == Match.Stage.GROUP:
+            team_names = team_names_for_group(group)
+            extras = []
+            if instance:
+                for value in (instance.home_team, instance.away_team):
+                    if value and value not in team_names:
+                        extras.append(value)
+            if group:
+                choices = [("", "---------")] + [(name, name) for name in team_names]
+                for name in extras:
+                    choices.append((name, f"{name} (not in this group anymore)"))
+                tip = "Teams currently in the selected group."
+            else:
+                choices = [("", "--------- Select a group first ---------")]
+                tip = "Select a group first to load its teams."
+            self.fields["home_team"] = forms.ChoiceField(
+                choices=choices, label="Home team", help_text=tip
             )
-            self.fields["home_team"].help_text = empty_tip
-            self.fields["away_team"].help_text = empty_tip
+            self.fields["away_team"] = forms.ChoiceField(
+                choices=choices, label="Away team", help_text=tip
+            )
+            if group and not team_names:
+                empty_tip = (
+                    "This group has no teams yet — add them under Competition "
+                    "groups after the lucky draw."
+                )
+                self.fields["home_team"].help_text = empty_tip
+                self.fields["away_team"].help_text = empty_tip
+        else:
+            self.fields["home_team"].help_text = (
+                "Knockout home team (or placeholder until advanced)."
+            )
+            self.fields["away_team"].help_text = (
+                "Knockout away team (or placeholder until advanced)."
+            )
+            self.fields["group"].help_text = (
+                "Leave empty for knockout — group tables are not updated."
+            )
 
     def _resolve_group(self):
-        group = None
         if self.is_bound:
             group_id = self.data.get(self.add_prefix("group")) or self.data.get("group")
             if group_id:
-                group = CompetitionGroup.objects.filter(pk=group_id).first()
+                return CompetitionGroup.objects.filter(pk=group_id).first()
         elif self.instance and self.instance.group_id:
-            group = self.instance.group
-        return group
+            return self.instance.group
+        return None
+
+    def _resolve_stage(self):
+        if self.is_bound:
+            return self.data.get(self.add_prefix("stage")) or self.data.get(
+                "stage", Match.Stage.GROUP
+            )
+        if self.instance and self.instance.pk:
+            return self.instance.stage
+        return Match.Stage.GROUP
 
     def clean(self):
         cleaned = super().clean()
+        stage = cleaned.get("stage") or Match.Stage.GROUP
         group = cleaned.get("group")
         home = (cleaned.get("home_team") or "").strip()
         away = (cleaned.get("away_team") or "").strip()
 
-        if not group:
-            self.add_error("group", "Select a group before picking teams.")
-            return cleaned
-
-        allowed = {name.lower() for name in team_names_for_group(group)}
-        instance = self.instance if getattr(self.instance, "pk", None) else None
-
-        for field_name, value in (("home_team", home), ("away_team", away)):
-            if not value:
-                continue
-            saved = (
-                (getattr(instance, field_name, "") or "").strip().lower()
-                if instance
-                else ""
-            )
-            if value.lower() not in allowed and value.lower() != saved:
-                self.add_error(
-                    field_name,
-                    f'"{value}" is not in {group.name}. '
-                    "Add the team to that group after the lucky draw, then try again.",
+        if stage == Match.Stage.GROUP:
+            if not group:
+                self.add_error("group", "Select a group for group-stage matches.")
+                return cleaned
+            allowed = {name.lower() for name in team_names_for_group(group)}
+            instance = self.instance if getattr(self.instance, "pk", None) else None
+            for field_name, value in (("home_team", home), ("away_team", away)):
+                if not value:
+                    continue
+                saved = (
+                    (getattr(instance, field_name, "") or "").strip().lower()
+                    if instance
+                    else ""
                 )
+                if value.lower() not in allowed and value.lower() != saved:
+                    self.add_error(
+                        field_name,
+                        f'"{value}" is not in {group.name}. '
+                        "Add the team to that group after the lucky draw.",
+                    )
+        else:
+            cleaned["group"] = None
 
         if home and away and home.lower() == away.lower():
             self.add_error("away_team", "Home and away teams must be different.")
