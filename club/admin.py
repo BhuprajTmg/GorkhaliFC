@@ -81,6 +81,26 @@ class GalleryImageAdmin(admin.ModelAdmin):
     list_filter = ("category",)
 
 
+class GroupNameListFilter(admin.SimpleListFilter):
+    """Sidebar filter: Matches by competition group name (e.g. Group A)."""
+
+    title = "group name"
+    parameter_name = "group_name"
+
+    def lookups(self, request, model_admin):
+        names = (
+            CompetitionGroup.objects.order_by("name")
+            .values_list("name", flat=True)
+            .distinct()
+        )
+        return [(name, name) for name in names]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(group__name=self.value())
+        return queryset
+
+
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     form = MatchAdminForm
@@ -96,8 +116,14 @@ class MatchAdmin(admin.ModelAdmin):
         "finished_at",
     )
     list_editable = ("status", "home_score", "away_score", "group")
-    list_filter = ("status", "group")
-    search_fields = ("home_team", "away_team", "venue")
+    list_filter = (GroupNameListFilter, "status", "group")
+    search_fields = (
+        "home_team",
+        "away_team",
+        "venue",
+        "group__name",
+        "group__season",
+    )
     readonly_fields = ("finished_at",)
     date_hierarchy = "match_date"
     fieldsets = (
