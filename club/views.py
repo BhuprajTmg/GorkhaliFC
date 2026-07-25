@@ -84,6 +84,7 @@ def home(request):
 
     # World Cup–format group tables: up to four active groups shown as a
     # compact interactive grid; each expands into a full standings view.
+    # Stats are kept in sync from finished Match scores (see club.standings).
     competition_groups = []
     for group in (
         CompetitionGroup.objects.filter(is_active=True)
@@ -100,6 +101,7 @@ def home(request):
         "next_match": schedule["next_match"],
         "upcoming_matches": schedule["upcoming_matches"],
         "past_matches": schedule["past_matches"],
+        "finished_visible_minutes": schedule["finished_visible_minutes"],
         "competition_groups": competition_groups,
         "categories": GalleryCategory.objects.all(),
         "images": GalleryImage.objects.all(),

@@ -128,10 +128,18 @@ class Match(models.Model):
         choices=Status.choices,
         default=Status.SCHEDULED,
         help_text="Set to 'Live now' on match day to show it at the top of "
-        "the schedule with a live indicator and score.",
+        "the schedule with a live indicator and score. Set to 'Finished' "
+        "with the final score to sync the group table and briefly show the "
+        "result on the site.",
     )
     home_score = models.PositiveSmallIntegerField(blank=True, null=True)
     away_score = models.PositiveSmallIntegerField(blank=True, null=True)
+    finished_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Set automatically when status becomes Finished. Used to "
+        "keep the result visible for a few minutes on the public site.",
+    )
     notes = models.CharField(max_length=200, blank=True)
 
     class Meta:
@@ -147,6 +155,35 @@ class Match(models.Model):
     @property
     def is_live(self):
         return self.status == self.Status.LIVE
+
+    def save(self, *args, **kwargs):
+        previous_status = None
+        if self.pk:
+            previous_status = (
+                Match.objects.filter(pk=self.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
+
+        if self.status == self.Status.FINISHED:
+            # Stamp the finish time when entering Finished; keep it stable
+            # if only the score is edited afterwards.
+            if previous_status != self.Status.FINISHED or self.finished_at is None:
+                from django.utils import timezone
+
+                if previous_status != self.Status.FINISHED:
+                    self.finished_at = timezone.now()
+                elif self.finished_at is None:
+                    self.finished_at = timezone.now()
+        else:
+            self.finished_at = None
+
+        super().save(*args, **kwargs)
+
+        # Keep World Cup group tables in sync with finished scores.
+        from .standings import sync_standings_after_match
+
+        sync_standings_after_match(self)
 
 
 class ContactMessage(models.Model):
@@ -166,7 +203,8 @@ class ContactMessage(models.Model):
 class CompetitionGroup(models.Model):
     """A World Cup–style group of four teams (e.g. Group A).
 
-    Standings are entered on each GroupTeam and ranked like FIFA group tables:
+    Team W/D/L/GF/GA are synced from finished Match scores (club vs an
+    opponent that appears in this group), then ranked like FIFA tables:
     points → goal difference → goals for → team name.
     """
 
@@ -178,7 +216,7 @@ class CompetitionGroup(models.Model):
     )
     is_active = models.BooleanField(
         default=True,
-        help_text="Only the active group is shown on the public schedule.",
+        help_text="Active groups (up to four) appear in the Schedule tables grid.",
     )
 
     class Meta:
@@ -202,22 +240,41 @@ class CompetitionGroup(models.Model):
 
 
 class GroupTeam(models.Model):
-    """One of up to four teams in a CompetitionGroup, with WC-table stats."""
+    """One of up to four teams in a CompetitionGroup, with WC-table stats.
+
+    Stats are auto-calculated from finished matches — opponent names on
+    Match records must match a GroupTeam name in the same group.
+    """
 
     group = models.ForeignKey(
         CompetitionGroup, related_name="teams", on_delete=models.CASCADE
     )
-    name = models.CharField(max_length=120)
+    name = models.CharField(
+        max_length=120,
+        help_text="Must match the Match opponent name for score sync.",
+    )
     is_club = models.BooleanField(
         default=False,
         help_text="Highlight this row as Gurkhali FC on the public table.",
     )
-    played = models.PositiveSmallIntegerField(default=0)
-    won = models.PositiveSmallIntegerField(default=0)
-    drawn = models.PositiveSmallIntegerField(default=0)
-    lost = models.PositiveSmallIntegerField(default=0)
-    goals_for = models.PositiveSmallIntegerField(default=0)
-    goals_against = models.PositiveSmallIntegerField(default=0)
+    played = models.PositiveSmallIntegerField(
+        default=0, help_text="Auto-updated from finished matches."
+    )
+    won = models.PositiveSmallIntegerField(
+        default=0, help_text="Auto-updated from finished matches."
+    )
+    drawn = models.PositiveSmallIntegerField(
+        default=0, help_text="Auto-updated from finished matches."
+    )
+    lost = models.PositiveSmallIntegerField(
+        default=0, help_text="Auto-updated from finished matches."
+    )
+    goals_for = models.PositiveSmallIntegerField(
+        default=0, help_text="Auto-updated from finished matches."
+    )
+    goals_against = models.PositiveSmallIntegerField(
+        default=0, help_text="Auto-updated from finished matches."
+    )
 
     class Meta:
         ordering = ["name"]

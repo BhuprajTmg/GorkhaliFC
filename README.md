@@ -25,11 +25,11 @@ with the nav bar linking to in-page sections via anchors
   - Any match marked **Live now** shows in a "Live Now" section at the
     very top, with a pulsing red dot, a glowing highlighted border, and
     the live score.
-  - Only one **Next Match** is revealed at a time — the earliest
-    unfinished fixture. The following game appears in that slot only
-    after the preceding match is marked **Finished**.
-  - Matches marked **Finished** show under "Results" with their final
-    score.
+  - The next **5 scheduled fixtures** are shown (first as Next Match,
+    the rest as Upcoming).
+  - Matches marked **Finished** (with a final score) appear under
+    Results for **5 minutes**, then disappear. Finishing a match also
+    syncs that score into the matching World Cup group table.
   - Up to four World Cup–format **group tables** in a compact interactive
     grid (hover to lift, click to expand the full standings in a faded
     overlay). Edit groups/teams under **Competition groups** in the admin.
@@ -231,10 +231,10 @@ Everything editable lives in the Django admin (`/admin/`):
   update the score fields as the match progresses, then set Status to
   "Finished" afterwards to move it into Results.
 - **Competition groups** — World Cup–style groups of up to four teams
-  each. Enter played / W / D / L / GF / GA for each team; public tables
-  rank by points → goal difference → goals for. Tick **Is club** on
-  Gurkhali FC to highlight that row. Mark up to four groups **Is active**
-  to show them in the Schedule grid.
+  each. Standings (P/W/D/L/GF/GA) are **auto-synced** from finished
+  Match scores when the opponent name matches a team in the group.
+  Tick **Is club** on Gurkhali FC to highlight that row. Mark up to
+  four groups **Is active** to show them in the Schedule grid.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section

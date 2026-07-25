@@ -152,4 +152,38 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
+
+  // Finished results stay visible briefly, then fade out (default 5 minutes).
+  document.querySelectorAll(".match-row[data-finished-at]").forEach(function (row) {
+    const finishedAt = Date.parse(row.getAttribute("data-finished-at"));
+    if (Number.isNaN(finishedAt)) return;
+
+    const minutes = parseInt(
+      row.getAttribute("data-finished-visible-minutes") || "5",
+      10
+    );
+    const visibleMs = (Number.isFinite(minutes) ? minutes : 5) * 60 * 1000;
+    const remaining = finishedAt + visibleMs - Date.now();
+
+    const removeRow = function () {
+      row.classList.add("is-fading-out");
+      window.setTimeout(function () {
+        const list = row.closest(".match-list");
+        row.remove();
+        if (list && !list.querySelector(".match-row")) {
+          const heading = list.previousElementSibling;
+          if (heading && heading.classList.contains("results-title")) {
+            heading.remove();
+          }
+          list.remove();
+        }
+      }, 450);
+    };
+
+    if (remaining <= 0) {
+      removeRow();
+    } else {
+      window.setTimeout(removeRow, remaining);
+    }
+  });
 });

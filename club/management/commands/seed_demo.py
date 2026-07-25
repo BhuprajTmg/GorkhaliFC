@@ -11,6 +11,7 @@ from club.models import (
     Match,
     Player,
 )
+from club.standings import recalculate_all_group_standings
 
 
 class Command(BaseCommand):
@@ -85,7 +86,8 @@ class Command(BaseCommand):
             ("Darwin FC", 14, "Gardens Oval, Darwin", True, datetime.time(18, 0)),
             ("Casuarina SC", 21, "Casuarina Stadium", False, datetime.time(17, 30)),
             ("Palmerston FC", 28, "Gardens Oval, Darwin", True, datetime.time(19, 0)),
-            ("Nightcliff FC", 42, "Nightcliff Oval", False, datetime.time(16, 0)),
+            ("Nightcliff FC", 35, "Nightcliff Oval", False, datetime.time(16, 0)),
+            ("Mindil Beach SC", 42, "Gardens Oval, Darwin", True, datetime.time(18, 30)),
         ]
         for opponent, days_ahead, venue, is_home, match_time in placeholder_fixtures:
             match_date = today + datetime.timedelta(days=days_ahead)
@@ -103,30 +105,32 @@ class Command(BaseCommand):
 
         # Four World Cup–format groups (compact grid on the site; editable
         # under Competition groups in admin). Gurkhali FC sits in Group A.
+        # Team stats start at zero and sync from finished Match scores.
+        # Opponent names must match Match.opponent for the table to update.
         demo_groups = {
             "Group A": [
-                ("Gurkhali FC", True, 3, 2, 1, 0, 7, 2),
-                ("Darwin FC", False, 3, 2, 0, 1, 5, 3),
-                ("Casuarina SC", False, 3, 1, 0, 2, 3, 5),
-                ("Palmerston FC", False, 3, 0, 1, 2, 2, 7),
+                ("Gurkhali FC", True),
+                ("Darwin FC", False),
+                ("Casuarina SC", False),
+                ("Palmerston FC", False),
             ],
             "Group B": [
-                ("Nightcliff FC", False, 3, 2, 1, 0, 6, 2),
-                ("Mindil Beach SC", False, 3, 1, 2, 0, 4, 3),
-                ("Stuart Park United", False, 3, 1, 0, 2, 3, 5),
-                ("Larrakeyah FC", False, 3, 0, 1, 2, 1, 4),
+                ("Nightcliff FC", False),
+                ("Mindil Beach SC", False),
+                ("Stuart Park United", False),
+                ("Larrakeyah FC", False),
             ],
             "Group C": [
-                ("Tiwi Islands FC", False, 3, 3, 0, 0, 8, 1),
-                ("Katherine Town", False, 3, 1, 1, 1, 4, 4),
-                ("Alice Springs SC", False, 3, 1, 0, 2, 3, 6),
-                ("Tennant Creek FC", False, 3, 0, 1, 2, 2, 6),
+                ("Tiwi Islands FC", False),
+                ("Katherine Town", False),
+                ("Alice Springs SC", False),
+                ("Tennant Creek FC", False),
             ],
             "Group D": [
-                ("Port Darwin FC", False, 3, 2, 0, 1, 5, 3),
-                ("Fannie Bay Rovers", False, 3, 1, 2, 0, 4, 3),
-                ("Rapid Creek SC", False, 3, 1, 1, 1, 3, 3),
-                ("Wulagi Wanderers", False, 3, 0, 1, 2, 2, 5),
+                ("Port Darwin FC", False),
+                ("Fannie Bay Rovers", False),
+                ("Rapid Creek SC", False),
+                ("Wulagi Wanderers", False),
             ],
         }
         for group_name, teams in demo_groups.items():
@@ -137,7 +141,6 @@ class Command(BaseCommand):
                     "is_active": True,
                 },
             )
-            # Ensure older single-group seeds still surface all four tables.
             if not group.is_active:
                 group.is_active = True
                 group.save(update_fields=["is_active"])
@@ -145,21 +148,18 @@ class Command(BaseCommand):
                 f"Competition group {group.name}: "
                 f"{'created' if group_created else 'already existed'}"
             )
-            for name, is_club, played, won, drawn, lost, gf, ga in teams:
+            for name, is_club in teams:
                 team, created = GroupTeam.objects.get_or_create(
                     group=group,
                     name=name,
-                    defaults={
-                        "is_club": is_club,
-                        "played": played,
-                        "won": won,
-                        "drawn": drawn,
-                        "lost": lost,
-                        "goals_for": gf,
-                        "goals_against": ga,
-                    },
+                    defaults={"is_club": is_club},
                 )
+                if team.is_club != is_club:
+                    team.is_club = is_club
+                    team.save(update_fields=["is_club"])
                 status = "created" if created else "already existed"
                 self.stdout.write(f"  {team.name}: {status}")
 
+        recalculate_all_group_standings()
+        self.stdout.write("Group standings synced from finished matches.")
         self.stdout.write(self.style.SUCCESS("Seed complete."))

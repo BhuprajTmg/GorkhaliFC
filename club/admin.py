@@ -88,9 +88,11 @@ class MatchAdmin(admin.ModelAdmin):
         "venue",
         "home_score",
         "away_score",
+        "finished_at",
     )
     list_editable = ("status", "home_score", "away_score")
     list_filter = ("status", "is_home")
+    readonly_fields = ("finished_at",)
     date_hierarchy = "match_date"
 
 
@@ -101,6 +103,14 @@ class GroupTeamInline(admin.TabularInline):
     fields = (
         "name",
         "is_club",
+        "played",
+        "won",
+        "drawn",
+        "lost",
+        "goals_for",
+        "goals_against",
+    )
+    readonly_fields = (
         "played",
         "won",
         "drawn",

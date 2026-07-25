@@ -1,4 +1,10 @@
-<div class="match-row {% if match.is_live %}match-row--live{% elif match.is_played %}match-row--result{% endif %}">
+<div
+    class="match-row {% if match.is_live %}match-row--live{% elif match.status == "FINISHED" %}match-row--result{% endif %}"
+    {% if match.status == "FINISHED" and match.finished_at %}
+    data-finished-at="{{ match.finished_at|date:'c' }}"
+    data-finished-visible-minutes="{{ finished_visible_minutes|default:5 }}"
+    {% endif %}
+>
     <div class="match-date {% if match.is_home %}match-date--home{% endif %}">
         <span class="match-date-month">{{ match.match_date|date:"M" }}</span>
         <span class="match-date-day">{{ match.match_date|date:"d" }}</span>

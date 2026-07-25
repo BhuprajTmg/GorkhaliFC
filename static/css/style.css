@@ -770,6 +770,12 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   border-radius: 4px;
 }
 
+.match-row.is-fading-out {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
 .match-row--result {
   border-left-color: var(--color-accent);
 }

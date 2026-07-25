@@ -1,12 +1,14 @@
 import datetime
 
 from django.test import TestCase
+from django.utils import timezone
 
-from club.models import Match
-from club.schedule import build_match_schedule
+from club.models import ClubInfo, CompetitionGroup, GroupTeam, Match
+from club.schedule import FINISHED_VISIBLE_MINUTES, build_match_schedule
+from club.standings import recalculate_group_standings
 
 
-class MatchScheduleRevealTests(TestCase):
+class MatchScheduleTests(TestCase):
     def _create(self, opponent, day, status=Match.Status.SCHEDULED, **extra):
         return Match.objects.create(
             opponent=opponent,
@@ -16,36 +18,47 @@ class MatchScheduleRevealTests(TestCase):
             **extra,
         )
 
-    def test_only_first_scheduled_shows_when_none_finished(self):
-        first = self._create("Darwin FC", 8)
-        self._create("Casuarina SC", 15)
-        self._create("Palmerston FC", 22)
+    def test_shows_next_and_up_to_four_more_upcoming(self):
+        matches = [self._create(f"Team {i}", i + 1) for i in range(7)]
 
         schedule = build_match_schedule()
 
-        self.assertEqual(schedule["next_match"], first)
-        self.assertEqual(schedule["upcoming_matches"], [])
-        self.assertEqual(schedule["live_matches"], [])
-        self.assertEqual(schedule["past_matches"], [])
+        self.assertEqual(schedule["next_match"], matches[0])
+        self.assertEqual(schedule["upcoming_matches"], matches[1:5])
+        self.assertEqual(len(schedule["upcoming_matches"]), 4)
 
-    def test_next_advances_only_after_previous_finished(self):
-        first = self._create(
+    def test_finished_visible_only_within_window(self):
+        now = timezone.now()
+        recent = self._create(
             "Darwin FC",
             8,
             status=Match.Status.FINISHED,
             home_score=2,
             away_score=1,
         )
-        second = self._create("Casuarina SC", 15)
-        self._create("Palmerston FC", 22)
+        Match.objects.filter(pk=recent.pk).update(
+            finished_at=now - datetime.timedelta(minutes=1)
+        )
 
-        schedule = build_match_schedule()
+        stale = self._create(
+            "Casuarina SC",
+            9,
+            status=Match.Status.FINISHED,
+            home_score=0,
+            away_score=0,
+        )
+        Match.objects.filter(pk=stale.pk).update(
+            finished_at=now
+            - datetime.timedelta(minutes=FINISHED_VISIBLE_MINUTES + 1)
+        )
 
-        self.assertEqual(schedule["next_match"], second)
-        self.assertEqual(schedule["upcoming_matches"], [])
-        self.assertEqual(list(schedule["past_matches"]), [first])
+        schedule = build_match_schedule(now=now)
+        past_ids = [m.pk for m in schedule["past_matches"]]
 
-    def test_live_match_blocks_next_until_finished(self):
+        self.assertIn(recent.pk, past_ids)
+        self.assertNotIn(stale.pk, past_ids)
+
+    def test_live_matches_listed_separately(self):
         live = self._create(
             "Darwin FC",
             8,
@@ -53,59 +66,100 @@ class MatchScheduleRevealTests(TestCase):
             home_score=1,
             away_score=0,
         )
-        self._create("Casuarina SC", 15)
+        nxt = self._create("Casuarina SC", 15)
 
         schedule = build_match_schedule()
-
         self.assertEqual(schedule["live_matches"], [live])
-        self.assertIsNone(schedule["next_match"])
-        self.assertEqual(schedule["upcoming_matches"], [])
+        self.assertEqual(schedule["next_match"], nxt)
 
-    def test_next_appears_after_live_match_marked_finished(self):
-        self._create(
-            "Darwin FC",
-            8,
+
+class GroupStandingsSyncTests(TestCase):
+    def setUp(self):
+        ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        self.group = CompetitionGroup.objects.create(
+            name="Group A", season="Darwin Cup 2026", is_active=True
+        )
+        self.gurkhali = GroupTeam.objects.create(
+            group=self.group, name="Gurkhali FC", is_club=True
+        )
+        self.darwin = GroupTeam.objects.create(group=self.group, name="Darwin FC")
+        self.casuarina = GroupTeam.objects.create(
+            group=self.group, name="Casuarina SC"
+        )
+        GroupTeam.objects.create(group=self.group, name="Palmerston FC")
+
+    def test_finished_match_updates_both_teams(self):
+        Match.objects.create(
+            opponent="Darwin FC",
+            match_date=datetime.date(2026, 7, 26),
+            match_time=datetime.time(18, 0),
+            is_home=True,
+            status=Match.Status.FINISHED,
+            home_score=2,
+            away_score=1,
+        )
+
+        self.gurkhali.refresh_from_db()
+        self.darwin.refresh_from_db()
+        self.casuarina.refresh_from_db()
+
+        self.assertEqual(self.gurkhali.played, 1)
+        self.assertEqual(self.gurkhali.won, 1)
+        self.assertEqual(self.gurkhali.goals_for, 2)
+        self.assertEqual(self.gurkhali.goals_against, 1)
+        self.assertEqual(self.gurkhali.points, 3)
+
+        self.assertEqual(self.darwin.played, 1)
+        self.assertEqual(self.darwin.lost, 1)
+        self.assertEqual(self.darwin.goals_for, 1)
+        self.assertEqual(self.darwin.goals_against, 2)
+        self.assertEqual(self.darwin.points, 0)
+        self.assertEqual(self.casuarina.played, 0)
+
+    def test_score_edit_on_finished_match_resyncs_table(self):
+        match = Match.objects.create(
+            opponent="Darwin FC",
+            match_date=datetime.date(2026, 7, 26),
+            is_home=True,
             status=Match.Status.FINISHED,
             home_score=1,
+            away_score=1,
+        )
+        match.home_score = 3
+        match.away_score = 0
+        match.save()
+
+        self.gurkhali.refresh_from_db()
+        self.darwin.refresh_from_db()
+        self.assertEqual(self.gurkhali.goals_for, 3)
+        self.assertEqual(self.gurkhali.won, 1)
+        self.assertEqual(self.darwin.goals_against, 3)
+        self.assertEqual(self.darwin.lost, 1)
+
+    def test_away_match_uses_correct_score_sides(self):
+        Match.objects.create(
+            opponent="Casuarina SC",
+            match_date=datetime.date(2026, 7, 28),
+            is_home=False,
+            status=Match.Status.FINISHED,
+            home_score=2,
+            away_score=2,
+        )
+        self.gurkhali.refresh_from_db()
+        self.casuarina.refresh_from_db()
+        self.assertEqual(self.gurkhali.drawn, 1)
+        self.assertEqual(self.gurkhali.goals_for, 2)
+        self.assertEqual(self.casuarina.drawn, 1)
+        self.assertEqual(self.casuarina.goals_for, 2)
+
+    def test_unfinished_match_does_not_affect_table(self):
+        Match.objects.create(
+            opponent="Darwin FC",
+            match_date=datetime.date(2026, 8, 1),
+            status=Match.Status.SCHEDULED,
+            home_score=5,
             away_score=0,
         )
-        second = self._create("Casuarina SC", 15)
-
-        schedule = build_match_schedule()
-
-        self.assertEqual(schedule["next_match"], second)
-        self.assertEqual(schedule["live_matches"], [])
-
-    def test_empty_schedule(self):
-        schedule = build_match_schedule()
-        self.assertIsNone(schedule["next_match"])
-        self.assertEqual(schedule["upcoming_matches"], [])
-        self.assertEqual(schedule["live_matches"], [])
-        self.assertEqual(schedule["past_matches"], [])
-
-    def test_sequential_finish_walks_the_queue(self):
-        m1 = self._create("A", 1)
-        m2 = self._create("B", 8)
-        m3 = self._create("C", 15)
-
-        self.assertEqual(build_match_schedule()["next_match"], m1)
-
-        m1.status = Match.Status.FINISHED
-        m1.home_score = 1
-        m1.away_score = 0
-        m1.save()
-        self.assertEqual(build_match_schedule()["next_match"], m2)
-
-        m2.status = Match.Status.FINISHED
-        m2.home_score = 0
-        m2.away_score = 0
-        m2.save()
-        self.assertEqual(build_match_schedule()["next_match"], m3)
-
-        m3.status = Match.Status.FINISHED
-        m3.home_score = 3
-        m3.away_score = 1
-        m3.save()
-        schedule = build_match_schedule()
-        self.assertIsNone(schedule["next_match"])
-        self.assertEqual(len(schedule["past_matches"]), 3)
+        recalculate_group_standings(self.group)
+        self.gurkhali.refresh_from_db()
+        self.assertEqual(self.gurkhali.played, 0)

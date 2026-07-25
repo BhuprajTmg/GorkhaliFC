@@ -1,44 +1,50 @@
 """Match schedule display rules for the public site.
 
-Only one fixture is revealed at a time as "Next Match". The queue advances
-strictly when every chronologically earlier match has status FINISHED.
-While a match is LIVE, the Next Match slot stays empty. Later scheduled
-fixtures are not listed under Upcoming until they become the queue head.
+- Show Live matches immediately.
+- Show the next 5 Scheduled fixtures (first as Next Match, rest as Upcoming).
+- Finished matches remain visible for FINISHED_VISIBLE_MINUTES, then drop off.
 """
+
+from datetime import timedelta
+
+from django.utils import timezone
 
 from .models import Match
 
+UPCOMING_LIMIT = 5
+FINISHED_VISIBLE_MINUTES = 5
 
-def build_match_schedule():
-    """Return live, next, upcoming, and past match lists for the homepage.
 
-    upcoming is always empty under the current reveal rules — kept in the
-    return signature so the template/section can stay in place if the club
-    later wants a controlled preview list.
-    """
-    ordered = list(
-        Match.objects.order_by("match_date", "match_time", "pk")
+def build_match_schedule(now=None):
+    """Return live, next, upcoming, and recently-finished match lists."""
+    now = now or timezone.now()
+
+    live_matches = list(
+        Match.objects.filter(status=Match.Status.LIVE).order_by(
+            "match_date", "match_time", "pk"
+        )
     )
-    live_matches = [m for m in ordered if m.status == Match.Status.LIVE]
-    past_matches = [
-        m for m in reversed(ordered) if m.status == Match.Status.FINISHED
-    ]
 
-    next_match = None
-    for match in ordered:
-        if match.status == Match.Status.FINISHED:
-            continue
-        # First non-finished match controls the schedule pointer.
-        if match.status == Match.Status.LIVE:
-            # Still in progress — do not promote the following fixture yet.
-            break
-        if match.status == Match.Status.SCHEDULED:
-            next_match = match
-        break
+    scheduled = list(
+        Match.objects.filter(status=Match.Status.SCHEDULED).order_by(
+            "match_date", "match_time", "pk"
+        )[:UPCOMING_LIMIT]
+    )
+    next_match = scheduled[0] if scheduled else None
+    upcoming_matches = scheduled[1:] if next_match else []
+
+    cutoff = now - timedelta(minutes=FINISHED_VISIBLE_MINUTES)
+    past_matches = list(
+        Match.objects.filter(
+            status=Match.Status.FINISHED,
+            finished_at__gte=cutoff,
+        ).order_by("-finished_at", "-match_date", "-match_time")
+    )
 
     return {
         "live_matches": live_matches,
         "next_match": next_match,
-        "upcoming_matches": [],
+        "upcoming_matches": upcoming_matches,
         "past_matches": past_matches,
+        "finished_visible_minutes": FINISHED_VISIBLE_MINUTES,
     }
