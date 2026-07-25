@@ -8,8 +8,20 @@ from club.group_fixtures import (
     generate_group_stage_fixtures,
     world_cup_group_rounds,
 )
-from club.knockout import generate_knockout_bracket, qualifiers_from_groups
-from club.models import ClubInfo, CompetitionGroup, GroupTeam, Match, TeamRegistration
+from club.knockout import (
+    all_group_stages_complete,
+    generate_knockout_bracket,
+    group_stage_progress,
+    qualifiers_from_groups,
+)
+from club.models import (
+    ClubInfo,
+    CompetitionGroup,
+    GroupTeam,
+    KnockoutBracket,
+    Match,
+    TeamRegistration,
+)
 from club.schedule import FINISHED_VISIBLE_MINUTES, build_match_schedule
 from club.standings import recalculate_group_standings
 
@@ -332,8 +344,24 @@ class KnockoutBracketTests(TestCase):
         self.assertEqual(q["1B"], "B1")
 
     def test_generate_knockout_creates_qf_sf_final(self):
+        # Mark group stage complete so require_group_stage_complete passes.
+        for group in self.groups:
+            Match.objects.create(
+                home_team=group.teams.first().name,
+                away_team=group.teams.last().name,
+                group=group,
+                stage=Match.Stage.GROUP,
+                match_date=datetime.date(2026, 8, 1),
+                status=Match.Status.FINISHED,
+                home_score=1,
+                away_score=0,
+            )
+        self.assertTrue(all_group_stages_complete(self.groups))
+
         result = generate_knockout_bracket(
-            start_date=datetime.date(2026, 9, 1), include_third_place=True
+            start_date=datetime.date(2026, 9, 1),
+            include_third_place=True,
+            require_group_stage_complete=True,
         )
         self.assertFalse(result.errors, result.errors)
         stages = {m.stage for m in result.created}
@@ -344,6 +372,15 @@ class KnockoutBracketTests(TestCase):
         self.assertEqual(
             Match.objects.filter(stage=Match.Stage.QF).count(), 4
         )
+
+    def test_blocks_generate_until_group_stage_finished(self):
+        result = generate_knockout_bracket(require_group_stage_complete=True)
+        self.assertTrue(result.errors)
+        self.assertEqual(Match.objects.exclude(stage=Match.Stage.GROUP).count(), 0)
+
+    def test_knockout_hub_exists(self):
+        hub = KnockoutBracket.get_solo()
+        self.assertEqual(hub.name, "Knockout Stage")
 
 
 class GroupFilteredMatchDropdownTests(TestCase):

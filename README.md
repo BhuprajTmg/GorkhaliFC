@@ -232,10 +232,11 @@ Everything editable lives in the Django admin (`/admin/`):
   tables / progress the bracket.
 - **Competition groups** — World Cup–style groups of up to four teams
   each. After the lucky draw, add teams to a group, then click
-  **Generate World Cup fixtures** (or use the changelist action) to
-  auto-create the round-robin matches (6 games for 4 teams). Standings
-  sync from finished match scores. Tick **Is club** on Gurkhali FC to
-  highlight that row.
+  **Generate World Cup fixtures** to auto-create round-robin matches.
+- **Knockout** — dedicated admin page listing the top 2 from each group
+  table. When the group stage is finished, click **Generate knockout
+  fixtures** to build QF → SF → Final (+ 3rd place) automatically, then
+  **Advance knockout winners** after each round.
 - **Gallery Categories / Gallery Images** — organize photos (e.g. Matches,
   Team Photos) and upload images with captions.
 - **Contact Messages** — messages submitted through the Contact section

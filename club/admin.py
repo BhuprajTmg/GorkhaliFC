@@ -1,11 +1,18 @@
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect, JsonResponse
-from django.urls import path
+from django.urls import path, reverse
+from django.utils import timezone
 from django.utils.html import format_html
 
 from .forms import GroupTeamAdminForm, MatchAdminForm, team_names_for_group
 from .group_fixtures import generate_group_stage_fixtures
-from .knockout import advance_knockout_winners, generate_knockout_bracket
+from .knockout import (
+    advance_knockout_winners,
+    all_group_stages_complete,
+    generate_knockout_bracket,
+    planned_first_round_pairings,
+    qualifier_rows,
+)
 from .models import (
     ClubInfo,
     CompetitionGroup,
@@ -13,6 +20,7 @@ from .models import (
     GalleryCategory,
     GalleryImage,
     GroupTeam,
+    KnockoutBracket,
     Match,
     Player,
     RegisteredPlayer,
@@ -196,11 +204,18 @@ class MatchAdmin(admin.ModelAdmin):
 
     @admin.action(description="Generate World Cup knockout bracket from group standings")
     def action_generate_knockout_bracket(self, request, queryset):
-        # Selection is ignored — bracket is built from all active groups.
-        result = generate_knockout_bracket()
+        # Prefer the Knockout admin page; this action still works from Matches.
+        hub = KnockoutBracket.get_solo()
+        result = generate_knockout_bracket(
+            start_date=hub.start_date,
+            include_third_place=hub.include_third_place,
+            require_group_stage_complete=True,
+        )
         for error in result.errors:
             self.message_user(request, error, level=messages.ERROR)
         if result.created:
+            hub.generated_at = timezone.now()
+            hub.save(update_fields=["generated_at"])
             self.message_user(
                 request,
                 f"Created {len(result.created)} knockout fixture(s).",
@@ -249,6 +264,108 @@ class GroupTeamInline(admin.TabularInline):
         "goals_for",
         "goals_against",
     )
+
+
+@admin.register(KnockoutBracket)
+class KnockoutBracketAdmin(admin.ModelAdmin):
+    """Dedicated Club → Knockout page: qualifiers + auto fixture generation."""
+
+    list_display = ("name", "season", "is_active", "include_third_place", "generated_at")
+    list_editable = ("is_active",)
+    readonly_fields = ("generated_at",)
+    change_form_template = "admin/club/knockoutbracket/change_form.html"
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": ("name", "season", "is_active", "include_third_place", "start_date"),
+                "description": (
+                    "When every group-stage match is finished, use the buttons "
+                    "below to pull the top 2 from each table and create the "
+                    "knockout fixtures automatically (World Cup rules)."
+                ),
+            },
+        ),
+        ("Status", {"fields": ("generated_at",)}),
+    )
+
+    def changelist_view(self, request, extra_context=None):
+        # Land directly on the knockout hub page (usually a single object).
+        hub = KnockoutBracket.get_solo()
+        if KnockoutBracket.objects.count() == 1:
+            return HttpResponseRedirect(
+                reverse("admin:club_knockoutbracket_change", args=[hub.pk])
+            )
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        rows = qualifier_rows()
+        stage, pairings = planned_first_round_pairings()
+        extra_context.update(
+            {
+                "qualifier_rows": rows,
+                "planned_pairings": pairings,
+                "first_knockout_stage": dict(Match.Stage.choices).get(stage, stage)
+                if stage
+                else "",
+                "group_stage_complete": all_group_stages_complete(),
+                "knockout_match_count": Match.objects.exclude(
+                    stage=Match.Stage.GROUP
+                ).count(),
+            }
+        )
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def _run_generate(self, request, obj, *, force):
+        result = generate_knockout_bracket(
+            start_date=obj.start_date,
+            include_third_place=obj.include_third_place,
+            require_group_stage_complete=not force,
+        )
+        for error in result.errors:
+            self.message_user(request, error, level=messages.ERROR)
+        if result.created:
+            obj.generated_at = timezone.now()
+            obj.save(update_fields=["generated_at"])
+            self.message_user(
+                request,
+                f"Created {len(result.created)} knockout fixture(s). "
+                "Open Matches (filter by Stage) or View site → Knockout.",
+                level=messages.SUCCESS,
+            )
+        if result.skipped:
+            self.message_user(
+                request,
+                f"Skipped {len(result.skipped)} existing knockout slot(s).",
+                level=messages.WARNING,
+            )
+
+    def response_change(self, request, obj):
+        if "_generate_knockout" in request.POST:
+            self._run_generate(request, obj, force=False)
+            return HttpResponseRedirect(request.path)
+        if "_generate_knockout_force" in request.POST:
+            self._run_generate(request, obj, force=True)
+            return HttpResponseRedirect(request.path)
+        if "_advance_knockout" in request.POST:
+            result = advance_knockout_winners()
+            for error in result.errors:
+                self.message_user(request, error, level=messages.WARNING)
+            if result.advanced:
+                self.message_user(
+                    request,
+                    "Advanced: " + "; ".join(result.advanced),
+                    level=messages.SUCCESS,
+                )
+            return HttpResponseRedirect(request.path)
+        return super().response_change(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        # Keep at least one hub page available.
+        if KnockoutBracket.objects.count() <= 1:
+            return False
+        return super().has_delete_permission(request, obj)
 
 
 @admin.register(CompetitionGroup)
@@ -306,13 +423,21 @@ class CompetitionGroupAdmin(admin.ModelAdmin):
             self._report_fixture_result(request, obj, result)
             return HttpResponseRedirect(request.path)
         if "_generate_knockout" in request.POST:
-            result = generate_knockout_bracket()
+            hub = KnockoutBracket.get_solo()
+            result = generate_knockout_bracket(
+                start_date=hub.start_date,
+                include_third_place=hub.include_third_place,
+                require_group_stage_complete=True,
+            )
             for error in result.errors:
                 self.message_user(request, error, level=messages.ERROR)
             if result.created:
+                hub.generated_at = timezone.now()
+                hub.save(update_fields=["generated_at"])
                 self.message_user(
                     request,
-                    f"Knockout: created {len(result.created)} fixture(s).",
+                    f"Knockout: created {len(result.created)} fixture(s). "
+                    "Open Club → Knockout for the full hub.",
                     level=messages.SUCCESS,
                 )
             if result.skipped:

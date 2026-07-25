@@ -1,0 +1,113 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_field_sets %}
+{{ block.super }}
+
+<div class="knockout-hub" style="margin: 24px 0; padding: 20px; border: 1px solid var(--hairline-color, #333); border-radius: 6px; background: var(--body-bg, #1e1e1e);">
+    <h2 style="margin-top: 0;">Group stage → Knockout qualifiers</h2>
+    <p style="color: var(--body-quiet-color, #999);">
+        Top 2 from each active competition group (current standings).
+        {% if group_stage_complete %}
+        <strong style="color: #7dcea0;">All group stages finished — ready to generate.</strong>
+        {% else %}
+        <strong style="color: #f5b041;">Finish every group-stage match before generating (or use Generate anyway).</strong>
+        {% endif %}
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 1px solid var(--hairline-color, #444);">
+                <th style="padding: 8px;">Group</th>
+                <th style="padding: 8px;">Progress</th>
+                <th style="padding: 8px;">1st (advances)</th>
+                <th style="padding: 8px;">2nd (advances)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in qualifier_rows %}
+            <tr style="border-bottom: 1px solid var(--hairline-color, #333);">
+                <td style="padding: 10px 8px; font-weight: 700;">{{ row.group.name }}</td>
+                <td style="padding: 10px 8px;">
+                    {% if row.total == 0 %}
+                    <span style="color: #e74c3c;">No fixtures</span>
+                    {% elif row.complete %}
+                    <span style="color: #7dcea0;">{{ row.finished }}/{{ row.total }} finished ✓</span>
+                    {% else %}
+                    <span style="color: #f5b041;">{{ row.finished }}/{{ row.total }} finished</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 10px 8px;">
+                    <span style="color: #eab53c; font-weight: 700;">{{ row.seed_1 }}</span>
+                    — {{ row.first }}
+                </td>
+                <td style="padding: 10px 8px;">
+                    <span style="color: #eab53c; font-weight: 700;">{{ row.seed_2 }}</span>
+                    — {{ row.second }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 12px 8px;">No active competition groups yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if planned_pairings %}
+    <h3 style="margin-bottom: 8px;">First knockout round
+        {% if first_knockout_stage %}({{ first_knockout_stage }}){% endif %}
+    </h3>
+    <ul style="margin: 0 0 16px; padding-left: 20px;">
+        {% for pair in planned_pairings %}
+        <li style="margin: 4px 0;">
+            <strong>{{ pair.home }}</strong> vs <strong>{{ pair.away }}</strong>
+            <span style="color: var(--body-quiet-color, #999);">
+                ({{ pair.home_seed }} vs {{ pair.away_seed }})
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if knockout_match_count %}
+    <p style="color: var(--body-quiet-color, #999);">
+        Knockout fixtures already in Matches: <strong>{{ knockout_match_count }}</strong>
+        {% if original.generated_at %}
+        — last generated {{ original.generated_at }}
+        {% endif %}
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+{% if original and original.pk %}
+<div class="submit-row" style="margin-top: 12px;">
+    <input
+        type="submit"
+        value="Generate knockout fixtures"
+        name="_generate_knockout"
+        style="background: #d81e3f; border-color: #d81e3f;"
+        onclick="return confirm('Create the World Cup knockout from the top 2 of each group? Existing knockout slots are skipped.');"
+    >
+    <input
+        type="submit"
+        value="Generate anyway (group stage incomplete)"
+        name="_generate_knockout_force"
+        style="background: #a8710a; border-color: #a8710a;"
+        onclick="return confirm('Group stage may still be incomplete. Generate knockout from CURRENT standings anyway?');"
+    >
+    <input
+        type="submit"
+        value="Advance knockout winners"
+        name="_advance_knockout"
+        style="background: #1a5f4a; border-color: #1a5f4a;"
+        onclick="return confirm('Fill the next round from finished knockout results?');"
+    >
+    <p style="margin: 8px 0 0; color: var(--body-quiet-color, #999); font-size: 12px;">
+        4 groups → Quarter-finals → Semi-finals → Final (+ 3rd place). Fixtures appear under Matches and on the public Knockout schedule.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

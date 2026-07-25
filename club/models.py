@@ -554,3 +554,57 @@ class RegisteredPlayer(models.Model):
 
     def __str__(self):
         return self.name or "(empty slot)"
+
+
+class KnockoutBracket(models.Model):
+    """Admin hub for the World Cup knockout phase.
+
+    Appears as "Knockout" in the Club admin. Shows top-2 qualifiers from
+    each competition group and generates the knockout fixtures.
+    """
+
+    name = models.CharField(max_length=120, default="Knockout Stage")
+    season = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text='e.g. "Darwin Cup 2026".',
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Show this knockout on the public schedule when fixtures exist.",
+    )
+    include_third_place = models.BooleanField(
+        default=True,
+        help_text="Create a 3rd-place play-off alongside the Final.",
+    )
+    start_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="First knockout matchday. Defaults to 7 days from today.",
+    )
+    generated_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Set automatically when fixtures are generated.",
+    )
+
+    class Meta:
+        verbose_name = "Knockout"
+        verbose_name_plural = "Knockout"
+        ordering = ["-is_active", "name"]
+
+    def __str__(self):
+        if self.season:
+            return f"{self.name} — {self.season}"
+        return self.name
+
+    @classmethod
+    def get_solo(cls):
+        """Return the primary knockout hub, creating one if needed."""
+        obj = cls.objects.filter(is_active=True).first()
+        if obj:
+            return obj
+        obj = cls.objects.first()
+        if obj:
+            return obj
+        return cls.objects.create(name="Knockout Stage", season="Darwin Cup 2026")

@@ -38,6 +38,80 @@ def group_letter(group):
     return cleaned[0].upper() if cleaned else "?"
 
 
+def active_groups():
+    return list(
+        CompetitionGroup.objects.filter(is_active=True)
+        .prefetch_related("teams")
+        .order_by("name")
+    )
+
+
+def group_stage_progress(group):
+    """Return (is_complete, finished_count, total_count) for a group's fixtures."""
+    matches = Match.objects.filter(stage=Match.Stage.GROUP, group=group)
+    total = matches.count()
+    if total == 0:
+        return False, 0, 0
+    finished = matches.filter(status=Match.Status.FINISHED).count()
+    return finished >= total, finished, total
+
+
+def all_group_stages_complete(groups=None):
+    groups = groups if groups is not None else active_groups()
+    usable = [g for g in groups if g.teams.count() >= 2]
+    if len(usable) < 2:
+        return False
+    return all(group_stage_progress(g)[0] for g in usable)
+
+
+def qualifier_rows(groups=None):
+    """Rows for the Knockout admin page: group, progress, 1st, 2nd."""
+    groups = groups if groups is not None else active_groups()
+    rows = []
+    for group in groups:
+        complete, finished, total = group_stage_progress(group)
+        standings = group.standings()
+        first = standings[0]["team"].name if len(standings) >= 1 else "—"
+        second = standings[1]["team"].name if len(standings) >= 2 else "—"
+        letter = group_letter(group)
+        rows.append(
+            {
+                "group": group,
+                "letter": letter,
+                "complete": complete,
+                "finished": finished,
+                "total": total,
+                "first": first,
+                "second": second,
+                "seed_1": f"1{letter}",
+                "seed_2": f"2{letter}",
+            }
+        )
+    return rows
+
+
+def planned_first_round_pairings(groups=None):
+    """Human-readable first-round knockout pairings from current tables."""
+    groups = groups if groups is not None else active_groups()
+    groups = [g for g in groups if g.teams.count() >= 2]
+    qualifiers = qualifiers_from_groups(groups)
+    letters = sorted({group_letter(g) for g in groups})
+    if len(letters) < 2:
+        return None, []
+    stage, pair_codes = _pairing_plan(letters)
+    pairings = []
+    for home_code, away_code in pair_codes:
+        pairings.append(
+            {
+                "home_seed": home_code,
+                "away_seed": away_code,
+                "home": qualifiers.get(home_code, f"? ({home_code})"),
+                "away": qualifiers.get(away_code, f"? ({away_code})"),
+            }
+        )
+    return stage, pairings
+
+
 def qualifiers_from_groups(groups):
     """Return { '1A': team, '2A': team, ... } from current standings."""
     qualifiers = {}
@@ -107,6 +181,7 @@ def generate_knockout_bracket(
     match_time=None,
     venue="",
     include_third_place=True,
+    require_group_stage_complete=True,
 ):
     """Create the first knockout round from active group standings.
 
@@ -114,15 +189,22 @@ def generate_knockout_bracket(
     so the bracket structure exists in admin.
     """
     result = KnockoutResult()
-    groups = list(
-        CompetitionGroup.objects.filter(is_active=True)
-        .prefetch_related("teams")
-        .order_by("name")
-    )
-    groups = [g for g in groups if g.teams.count() >= 2]
+    groups = [g for g in active_groups() if g.teams.count() >= 2]
     if len(groups) < 2:
         result.errors.append(
             "Need at least 2 active groups with 2+ teams each to build a knockout."
+        )
+        return result
+
+    if require_group_stage_complete and not all_group_stages_complete(groups):
+        incomplete = [
+            f"{g.name} ({group_stage_progress(g)[1]}/{group_stage_progress(g)[2]} finished)"
+            for g in groups
+            if not group_stage_progress(g)[0]
+        ]
+        result.errors.append(
+            "Group stage is not finished yet. Finish all group matches first, "
+            "or use Generate anyway. Incomplete: " + "; ".join(incomplete)
         )
         return result
 
