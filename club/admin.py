@@ -36,7 +36,100 @@ admin.site.index_title = "Club management"
 
 @admin.register(ClubInfo)
 class ClubInfoAdmin(admin.ModelAdmin):
-    list_display = ("name", "location", "founded_year")
+    list_display = ("name", "email", "location", "founded_year", "smtp_status")
+    readonly_fields = ("smtp_status",)
+    actions = ("action_send_test_email",)
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "tagline",
+                    "location",
+                    "about",
+                    "founded_year",
+                    "home_ground",
+                    "logo",
+                )
+            },
+        ),
+        (
+            "Contact & email",
+            {
+                "fields": ("email", "phone", "smtp_status"),
+                "description": (
+                    "Set Email to the club Gmail. Real delivery also needs "
+                    "EMAIL_HOST_USER + EMAIL_HOST_PASSWORD (App Password) in "
+                    ".env — see smtp status below. Use the “Send test email” "
+                    "action after saving."
+                ),
+            },
+        ),
+        (
+            "Social",
+            {"fields": ("facebook_url", "instagram_url", "youtube_url")},
+        ),
+    )
+
+    @admin.display(description="SMTP / outbound email")
+    def smtp_status(self, obj):
+        from django.conf import settings
+
+        from .emails import _from_email, email_delivery_enabled
+
+        if email_delivery_enabled():
+            return format_html(
+                '<span style="color:#0a7a32;font-weight:600;">Configured</span> '
+                "— sending as <code>{}</code>",
+                _from_email(obj),
+            )
+        user = settings.EMAIL_HOST_USER or "(missing)"
+        return format_html(
+            '<span style="color:#b00020;font-weight:600;">Not configured</span> '
+            "— emails only print to the server console. Add "
+            "<code>EMAIL_HOST_USER</code> / <code>EMAIL_HOST_PASSWORD</code> "
+            "(Gmail App Password) to <code>.env</code>, set Club Email to that "
+            "same Gmail, restart the server. Current EMAIL_HOST_USER: "
+            "<code>{}</code>",
+            user,
+        )
+
+    @admin.action(description="Send test email to Club Info address")
+    def action_send_test_email(self, request, queryset):
+        from .emails import email_delivery_enabled, send_test_email
+
+        if not email_delivery_enabled():
+            self.message_user(
+                request,
+                "Cannot send: SMTP is not configured. Add EMAIL_HOST_USER and "
+                "EMAIL_HOST_PASSWORD (Gmail App Password) to .env and restart.",
+                level=messages.ERROR,
+            )
+            return
+        sent = 0
+        for club in queryset:
+            target = (club.email or "").strip()
+            if not target:
+                self.message_user(
+                    request,
+                    f"{club}: set Club Info → Email first.",
+                    level=messages.ERROR,
+                )
+                continue
+            if send_test_email(target, club):
+                sent += 1
+                self.message_user(
+                    request,
+                    f"Test email sent to {target}. Check inbox (and Spam).",
+                    level=messages.SUCCESS,
+                )
+        if not sent and queryset.count():
+            self.message_user(
+                request,
+                "No test email was delivered. Check server logs for SMTP errors.",
+                level=messages.ERROR,
+            )
 
 
 @admin.register(Player)

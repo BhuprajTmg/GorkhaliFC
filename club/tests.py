@@ -898,3 +898,39 @@ class TeamRegistrationFormTests(TestCase):
             m for m in mail.outbox if "Match schedules are ready" in m.subject
         ]
         self.assertEqual(len(schedule_mails), APPROVED_TEAMS_FOR_SCHEDULE)
+
+
+class EmailSenderTests(TestCase):
+    def test_from_email_uses_club_name_and_smtp_user(self):
+        from django.test import override_settings
+
+        from club.emails import _from_email, email_delivery_enabled
+
+        club = ClubInfo.objects.create(
+            name="Gurkhali FC", email="club@gmail.com", founded_year=2023
+        )
+        with override_settings(
+            EMAIL_HOST_USER="club@gmail.com",
+            EMAIL_HOST_PASSWORD="abcd efgh ijkl mnop",
+            EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+            DEFAULT_FROM_EMAIL="club@gmail.com",
+        ):
+            self.assertTrue(email_delivery_enabled())
+            self.assertEqual(_from_email(club), "Gurkhali FC <club@gmail.com>")
+
+    def test_from_email_falls_back_to_smtp_login_if_club_differs(self):
+        from django.test import override_settings
+
+        from club.emails import _from_email
+
+        club = ClubInfo.objects.create(
+            name="Gurkhali FC", email="other@gmail.com", founded_year=2023
+        )
+        with override_settings(
+            EMAIL_HOST_USER="smtp.login@gmail.com",
+            DEFAULT_FROM_EMAIL="smtp.login@gmail.com",
+        ):
+            # Gmail requires From == authenticated user.
+            self.assertEqual(
+                _from_email(club), "Gurkhali FC <smtp.login@gmail.com>"
+            )

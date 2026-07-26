@@ -21,15 +21,55 @@ from django.core.mail import EmailMessage
 logger = logging.getLogger(__name__)
 
 
+def email_delivery_enabled():
+    """True only when real SMTP credentials are configured (not console/dummy)."""
+    backend = (settings.EMAIL_BACKEND or "").lower()
+    if any(name in backend for name in ("console", "dummy", "locmem")):
+        return False
+    return bool(settings.EMAIL_HOST_USER and settings.EMAIL_HOST_PASSWORD)
+
+
 def _notification_recipient(club):
     return (
         (club and club.email)
         or settings.CONTACT_NOTIFICATION_EMAIL
+        or settings.EMAIL_HOST_USER
         or settings.DEFAULT_FROM_EMAIL
     )
 
 
-def _send(subject, body, recipient=None, reply_to=None, attachments=None, recipients=None):
+def _from_email(club=None):
+    """Build the From header: club name + authenticated SMTP mailbox.
+
+    Gmail SMTP will only accept From addresses that match EMAIL_HOST_USER
+    (or a verified alias). Club Info email is used when it matches that
+    mailbox; otherwise we still send as the SMTP login so delivery works.
+    """
+    smtp_user = (settings.EMAIL_HOST_USER or "").strip()
+    club_email = ((club.email if club else "") or "").strip()
+    address = smtp_user or settings.DEFAULT_FROM_EMAIL or club_email
+    if club_email and smtp_user and club_email.lower() == smtp_user.lower():
+        address = club_email
+    elif club_email and not smtp_user:
+        address = club_email
+
+    club_name = ((club.name if club else "") or "Gurkhali FC").replace('"', "").strip()
+    if address and club_name:
+        return f"{club_name} <{address}>"
+    return address or settings.DEFAULT_FROM_EMAIL
+
+
+def _send(
+    subject,
+    body,
+    recipient=None,
+    reply_to=None,
+    attachments=None,
+    recipients=None,
+    club=None,
+    from_email=None,
+):
+    """Send an email. Returns True on success, False otherwise."""
     to = list(recipients or [])
     if recipient:
         to.append(recipient)
@@ -43,12 +83,25 @@ def _send(subject, body, recipient=None, reply_to=None, attachments=None, recipi
         )
         logger.warning(message)
         print(f"[club.emails] {message}")
-        return
+        return False
 
+    backend = (settings.EMAIL_BACKEND or "").lower()
+    if not email_delivery_enabled() and "console" in backend:
+        message = (
+            "Email NOT delivered to a real inbox — SMTP is not configured. "
+            "Emails are only printed to the server console. "
+            "Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (Gmail App Password) "
+            "in .env (see .env.example), set Club Info → Email to that same "
+            "Gmail address, then restart the server."
+        )
+        logger.warning(message)
+        print(f"[club.emails] {message}")
+        # Still attempt send so console/locmem backends keep working in tests/dev.
+    sender = from_email or _from_email(club)
     email = EmailMessage(
         subject=subject,
         body=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=sender,
         to=to,
         reply_to=[reply_to] if reply_to else None,
     )
@@ -59,7 +112,7 @@ def _send(subject, body, recipient=None, reply_to=None, attachments=None, recipi
         email.send(fail_silently=False)
     except Exception as exc:  # noqa: BLE001 - we want to log *any* send failure
         message = (
-            f"Failed to send email to {to} using "
+            f"Failed to send email to {to} from {sender!r} using "
             f"{settings.EMAIL_BACKEND} (host={settings.EMAIL_HOST}, "
             f"user={settings.EMAIL_HOST_USER or '(not set)'}): {exc!r}\n"
             "If you haven't already, add EMAIL_HOST_USER and "
@@ -69,8 +122,12 @@ def _send(subject, body, recipient=None, reply_to=None, attachments=None, recipi
         )
         logger.error(message)
         print(f"[club.emails] {message}")
-    else:
-        print(f"[club.emails] Email sent to {to}: {subject}")
+        return False
+
+    delivered = "console" not in (settings.EMAIL_BACKEND or "").lower()
+    status = "sent" if delivered else "printed to console (not delivered to inbox)"
+    print(f"[club.emails] Email {status} to {to} from {sender}: {subject}")
+    return True
 
 
 def _roster_rows(registration):
@@ -286,7 +343,7 @@ def _pdf_table(pdf, rows):
 
 
 def send_contact_notification(contact_message, club):
-    _send(
+    return _send(
         subject=f"[{club.name if club else 'Gurkhali FC'}] New contact message from {contact_message.name}",
         body=(
             f"You have a new message from the club website contact form.\n\n"
@@ -298,6 +355,7 @@ def send_contact_notification(contact_message, club):
         ),
         recipient=_notification_recipient(club),
         reply_to=contact_message.email,
+        club=club,
     )
 
 
@@ -312,7 +370,7 @@ def send_registration_notification(registration, club):
     roster_lines = "\n".join(f"  #{jersey} — {name}" for jersey, name in roster) or "  (none listed)"
     club_name = club.name if club else "Gurkhali FC"
 
-    _send(
+    return _send(
         subject=f"[{club_name}] New tournament registration: {registration.team_name}",
         body=(
             f"A new team has registered for a tournament via the club website.\n\n"
@@ -333,6 +391,7 @@ def send_registration_notification(registration, club):
         ),
         recipient=_notification_recipient(club),
         reply_to=registration.email,
+        club=club,
         attachments=[
             (
                 f"Registration - {safe_team_name}.docx",
@@ -351,7 +410,7 @@ def send_registration_notification(registration, club):
 def send_registration_received_confirmation(registration, club):
     """Tell the registering team their application is under review."""
     club_name = club.name if club else "Gurkhali FC"
-    _send(
+    return _send(
         subject=f"[{club_name}] Registration received — {registration.team_name}",
         body=(
             f"Hi {registration.manager_name},\n\n"
@@ -367,6 +426,7 @@ def send_registration_received_confirmation(registration, club):
         ),
         recipient=registration.email,
         reply_to=_notification_recipient(club),
+        club=club,
     )
 
 
@@ -386,7 +446,7 @@ def send_schedule_ready_notifications(club):
     site_hint = "Visit the Gurkhali FC website Schedule section for fixtures and group tables."
     sent = 0
     for reg in approved:
-        _send(
+        if _send(
             subject=f"[{club_name}] Match schedules are ready — {reg.tournament_name}",
             body=(
                 f"Hi {reg.manager_name},\n\n"
@@ -398,6 +458,24 @@ def send_schedule_ready_notifications(club):
             ),
             recipient=reg.email,
             reply_to=_notification_recipient(club),
-        )
-        sent += 1
+            club=club,
+        ):
+            sent += 1
     return sent
+
+
+def send_test_email(to_address, club=None):
+    """Send a one-off test message so admins can verify SMTP works."""
+    club_name = club.name if club else "Gurkhali FC"
+    return _send(
+        subject=f"[{club_name}] Test email — SMTP is working",
+        body=(
+            f"This is a test email from {club_name}.\n\n"
+            "If you received this in your inbox, outbound email is configured "
+            "correctly and registration confirmation emails can be delivered.\n\n"
+            f"SMTP user: {settings.EMAIL_HOST_USER or '(not set)'}\n"
+            f"From: {_from_email(club)}\n"
+        ),
+        recipient=to_address,
+        club=club,
+    )

@@ -25,7 +25,16 @@ class ClubInfo(models.Model):
     founded_year = models.PositiveIntegerField(blank=True, null=True)
     home_ground = models.CharField(max_length=150, blank=True)
     logo = models.ImageField(upload_to="club/", blank=True, null=True)
-    email = models.EmailField(blank=True)
+    email = models.EmailField(
+        blank=True,
+        help_text=(
+            "Club Gmail address used as the visible sender / reply-to for "
+            "registration emails. Must match EMAIL_HOST_USER in .env "
+            "(same Gmail), and that account needs a Gmail App Password in "
+            "EMAIL_HOST_PASSWORD — otherwise emails only print to the server "
+            "console and never reach inboxes."
+        ),
+    )
     phone = models.CharField(max_length=30, blank=True)
     facebook_url = models.URLField(blank=True)
     instagram_url = models.URLField(blank=True)

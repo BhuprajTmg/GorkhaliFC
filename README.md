@@ -40,14 +40,11 @@ with the nav bar linking to in-page sections via anchors
 - **Register** — a "Register Your Team" button that opens a floating,
   semi-transparent form overlay (doesn't take up space on the page until
   clicked) with: team name, division, manager/coach contact, plus a
-  **fixed 15-slot player roster** (name + jersey number per row — see
-  `club.models.ROSTER_SIZE` to change the count). The player count is
-  calculated automatically from how many roster rows have a name, not
-  manually typed in. Submissions are saved to the database, emailed to
-  the club with both a Word (`.docx`) and a PDF summary attached (full
-  roster included), and manageable (approve / waitlist / reject) from
-  the admin. If a submission has errors, the form re-opens automatically
-  showing what needs fixing.
+  **fixed 12-slot player roster** (all names required; jersey optional —
+  see `club.models.ROSTER_SIZE`). Submissions are saved to the database,
+  emailed to the club with Word/PDF attachments, and the registering
+  team's Gmail gets a review confirmation. Manageable (approve /
+  waitlist / reject) from the admin.
 - **Photos** — gallery with category filters (Matches, Team Photos,
   Training, ...) filtered instantly with JS, no page reload.
 - **Contact** — club contact details, social links, and a working contact
@@ -120,38 +117,45 @@ media/                  User-uploaded images (players, gallery, logo) - gitignor
 
 ## Email setup (contact form + registrations)
 
-Submitting the Contact form or the tournament Register form always saves
-the message/registration to the database (visible in the admin either
-way), and additionally tries to **email the club** at whatever address is
-set in **Club Info → Email** (falls back to `CONTACT_NOTIFICATION_EMAIL` if
-Club Info has no email set). Registration emails also attach both a Word
-(`.docx`) and a PDF document summarising the team's details and full
-player roster.
+Submitting Contact / Register always saves to the database. With SMTP
+configured, the site also emails:
 
-**Without any setup**, that email is just printed to your terminal/console
-window (look for lines starting with `[club.emails] ...`) — nothing
-breaks, but no real email is sent, which is why "the form works but I
-never receive an email" usually means this hasn't been set up yet. To
-send real emails:
+1. **The club** (Club Info → Email) — new contact messages and new team
+   registrations (with Word + PDF roster attachments).
+2. **The registering team** — confirmation that their registration is
+   being reviewed (sender appears as the club Gmail).
 
-1. Copy `.env.example` to a new file named `.env` in the project root (same
-   folder as `manage.py`).
-2. If using Gmail: turn on 2-Step Verification on the Google account, then
-   create an **App Password** at
+**Important:** putting an address in **Club Info → Email alone is not
+enough**. Without `EMAIL_HOST_USER` + `EMAIL_HOST_PASSWORD`, Django only
+prints emails to the server console — nothing reaches real Gmail inboxes.
+That is the usual reason registration "works" but no confirmation arrives.
+
+To send real emails from the club Gmail:
+
+1. Copy `.env.example` to `.env` in the project root (same folder as
+   `manage.py`).
+2. On the club Google account: turn on 2-Step Verification, then create an
+   **App Password** at
    [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-   (a normal Gmail password won't work for this).
-3. Fill in `.env`:
+   (a normal Gmail password will not work).
+3. Fill in `.env` with the **same** club Gmail:
 
    ```
-   EMAIL_HOST_USER=your-email@gmail.com
+   EMAIL_HOST_USER=your-club-email@gmail.com
    EMAIL_HOST_PASSWORD=your-16-character-app-password
+   DEFAULT_FROM_EMAIL=your-club-email@gmail.com
    ```
 
-4. Restart the server (`python manage.py runserver`). Emails will now
-   actually be sent via Gmail's SMTP server, from that address, to whatever
-   email is set in Club Info.
+4. In Admin → Club Info, set **Email** to that same club Gmail and save.
+5. Restart the server, then verify:
 
-Other email providers work too — just set `EMAIL_HOST`, `EMAIL_PORT`, and
+   ```
+   python manage.py send_test_email yourpersonal@gmail.com
+   ```
+
+   Or in Admin → Club Info, select the row → action **Send test email**.
+
+Other email providers work too — set `EMAIL_HOST`, `EMAIL_PORT`, and
 `EMAIL_USE_TLS` in `.env` to match (defaults are Gmail's).
 
 **On Cursor Cloud Agents:** add `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` as

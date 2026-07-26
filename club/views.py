@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .emails import (
+    email_delivery_enabled,
     send_contact_notification,
     send_registration_notification,
     send_registration_received_confirmation,
@@ -48,13 +49,23 @@ def home(request):
                 roster_formset.save()
                 registration.refresh_player_count()
                 send_registration_notification(registration, club)
-                send_registration_received_confirmation(registration, club)
-                messages.success(
-                    request,
-                    f"Thanks, {registration.team_name}! Your registration for "
-                    f"{registration.tournament_name} is being reviewed — check "
-                    f"your Gmail for confirmation.",
+                confirmation_queued = send_registration_received_confirmation(
+                    registration, club
                 )
+                if email_delivery_enabled() and confirmation_queued:
+                    messages.success(
+                        request,
+                        f"Thanks, {registration.team_name}! Your registration for "
+                        f"{registration.tournament_name} is being reviewed — check "
+                        f"your Gmail for confirmation.",
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f"Thanks, {registration.team_name}! Your registration for "
+                        f"{registration.tournament_name} was received and is "
+                        f"being reviewed.",
+                    )
                 return redirect(f"{request.path}#register")
             messages.error(
                 request,
