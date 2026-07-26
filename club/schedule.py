@@ -1,9 +1,11 @@
 """Match schedule display rules for the public site.
 
 - Show Live matches immediately.
-- Show the next 5 Scheduled group-stage fixtures (Next + Upcoming).
-- Show a visual knockout bracket (QF / SF / Final) in the schedule hero.
-- Finished group matches remain visible for FINISHED_VISIBLE_MINUTES, then drop off.
+- Show the next 5 Scheduled fixtures (Next + Upcoming):
+  group-stage games while the group stage is ongoing, then real knockout
+  ties once the group stage is finished (Winner/Loser placeholders skipped).
+- Show a visual knockout bracket (QF / SF / Final) after groups complete.
+- Finished matches remain visible for FINISHED_VISIBLE_MINUTES, then drop off.
 """
 
 from datetime import timedelta
@@ -289,6 +291,37 @@ def _stage_rank(stage):
     return order.get(stage, 99)
 
 
+def _is_bracket_placeholder_team(name):
+    """True for auto-generated 'Winner QF1' / 'Loser SF2' shell slots."""
+    cleaned = (name or "").strip().lower()
+    return cleaned.startswith("winner ") or cleaned.startswith("loser ")
+
+
+def _scheduled_queue(group_stage_complete):
+    """Next/Upcoming fixture queue for the public schedule."""
+    if group_stage_complete:
+        knockout = list(
+            Match.objects.filter(status=Match.Status.SCHEDULED)
+            .exclude(stage=Match.Stage.GROUP)
+            .order_by("match_date", "match_time", "bracket_order", "pk")
+        )
+        # Only real ties — skip SF/Final shells still waiting on earlier winners.
+        real = [
+            match
+            for match in knockout
+            if not _is_bracket_placeholder_team(match.home_team)
+            and not _is_bracket_placeholder_team(match.away_team)
+        ]
+        return real[:UPCOMING_LIMIT]
+
+    return list(
+        Match.objects.filter(
+            status=Match.Status.SCHEDULED,
+            stage=Match.Stage.GROUP,
+        ).order_by("match_date", "match_time", "pk")[:UPCOMING_LIMIT]
+    )
+
+
 def build_match_schedule(now=None):
     """Return live, next, upcoming, knockout, and recently-finished lists."""
     from .knockout import all_group_stages_complete
@@ -304,14 +337,9 @@ def build_match_schedule(now=None):
         live_qs.order_by("match_date", "match_time", "pk")
     )
 
-    scheduled_group = list(
-        Match.objects.filter(
-            status=Match.Status.SCHEDULED,
-            stage=Match.Stage.GROUP,
-        ).order_by("match_date", "match_time", "pk")[:UPCOMING_LIMIT]
-    )
-    next_match = scheduled_group[0] if scheduled_group else None
-    upcoming_matches = scheduled_group[1:] if next_match else []
+    scheduled = _scheduled_queue(group_stage_complete)
+    next_match = scheduled[0] if scheduled else None
+    upcoming_matches = scheduled[1:] if next_match else []
 
     # Flat knockout lists kept for tests / secondary use; public UI uses
     # the visual bracket from build_knockout_bracket_display().
@@ -342,12 +370,17 @@ def build_match_schedule(now=None):
                 )
 
     cutoff = now - timedelta(minutes=FINISHED_VISIBLE_MINUTES)
+    past_qs = Match.objects.filter(
+        status=Match.Status.FINISHED,
+        finished_at__gte=cutoff,
+    )
+    if group_stage_complete:
+        # After groups finish, Results can include recent knockout full-times too.
+        pass
+    else:
+        past_qs = past_qs.filter(stage=Match.Stage.GROUP)
     past_matches = list(
-        Match.objects.filter(
-            status=Match.Status.FINISHED,
-            stage=Match.Stage.GROUP,
-            finished_at__gte=cutoff,
-        ).order_by("-finished_at", "-match_date", "-match_time")
+        past_qs.order_by("-finished_at", "-match_date", "-match_time")
     )
 
     return {

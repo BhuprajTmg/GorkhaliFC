@@ -93,6 +93,68 @@ class MatchScheduleTests(TestCase):
         self.assertIn("knockout_bracket", schedule)
         self.assertIn("columns", schedule["knockout_bracket"])
 
+    def test_next_and_upcoming_use_knockout_after_group_stage(self):
+        ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        groups = []
+        for letter in "ABCD":
+            group = CompetitionGroup.objects.create(
+                name=f"Group {letter}", season="Cup", is_active=True
+            )
+            for index in range(4):
+                GroupTeam.objects.create(
+                    group=group,
+                    name=f"{letter}{index + 1}",
+                    played=1,
+                    won=1 if index == 0 else 0,
+                    lost=0 if index == 0 else 1,
+                )
+            Match.objects.create(
+                home_team=f"{letter}1",
+                away_team=f"{letter}4",
+                group=group,
+                stage=Match.Stage.GROUP,
+                match_date=datetime.date(2026, 8, 1),
+                status=Match.Status.FINISHED,
+                home_score=2,
+                away_score=0,
+            )
+            groups.append(group)
+
+        qf1 = Match.objects.create(
+            home_team="A1",
+            away_team="B2",
+            stage=Match.Stage.QF,
+            bracket_order=1,
+            match_date=datetime.date(2026, 9, 1),
+            match_time=datetime.time(18, 0),
+            status=Match.Status.SCHEDULED,
+        )
+        qf2 = Match.objects.create(
+            home_team="C1",
+            away_team="D2",
+            stage=Match.Stage.QF,
+            bracket_order=2,
+            match_date=datetime.date(2026, 9, 1),
+            match_time=datetime.time(20, 0),
+            status=Match.Status.SCHEDULED,
+        )
+        Match.objects.create(
+            home_team="Winner QF1",
+            away_team="Winner QF2",
+            stage=Match.Stage.SF,
+            bracket_order=1,
+            match_date=datetime.date(2026, 9, 5),
+            status=Match.Status.SCHEDULED,
+        )
+
+        schedule = build_match_schedule()
+        self.assertEqual(schedule["next_match"], qf1)
+        self.assertEqual(schedule["upcoming_matches"], [qf2])
+        self.assertNotIn(
+            "Winner QF1",
+            [m.home_team for m in schedule["upcoming_matches"]],
+        )
+
 
 class KnockoutBracketDisplayTests(TestCase):
     def setUp(self):
