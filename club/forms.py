@@ -1,8 +1,11 @@
+import re
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from .models import (
+    DEFAULT_TOURNAMENT_NAME,
     CompetitionGroup,
     ContactMessage,
     GroupTeam,
@@ -56,9 +59,7 @@ class TeamRegistrationForm(forms.ModelForm):
     class Meta:
         model = TeamRegistration
         fields = [
-            "tournament_name",
             "team_name",
-            "division",
             "manager_name",
             "phone",
             "email",
@@ -68,22 +69,87 @@ class TeamRegistrationForm(forms.ModelForm):
             "agreed_to_rules",
         ]
         widgets = {
-            "tournament_name": forms.TextInput(attrs={"placeholder": "e.g. Gurkhali Cup 2026"}),
-            "team_name": forms.TextInput(attrs={"placeholder": "Your team's name"}),
-            "manager_name": forms.TextInput(attrs={"placeholder": "Full name"}),
-            "phone": forms.TextInput(attrs={"placeholder": "e.g. 0400 000 000"}),
-            "email": forms.EmailInput(attrs={"placeholder": "team@example.com"}),
-            "home_city": forms.TextInput(attrs={"placeholder": "e.g. Darwin"}),
+            "team_name": forms.TextInput(
+                attrs={
+                    "placeholder": "Your team's name",
+                    "autocomplete": "organization",
+                }
+            ),
+            "manager_name": forms.TextInput(
+                attrs={"placeholder": "Full name", "autocomplete": "name"}
+            ),
+            "phone": forms.TextInput(
+                attrs={
+                    "placeholder": "e.g. 0400 000 000",
+                    "autocomplete": "tel",
+                    "inputmode": "tel",
+                }
+            ),
+            "email": forms.EmailInput(
+                attrs={
+                    "placeholder": "yourteam@gmail.com",
+                    "autocomplete": "email",
+                }
+            ),
+            "home_city": forms.TextInput(
+                attrs={"placeholder": "e.g. Darwin", "autocomplete": "address-level2"}
+            ),
             "experience": forms.Textarea(
                 attrs={
-                    "placeholder": "Optional — any previous tournaments you've played in",
+                    "placeholder": "List previous tournaments or write N/A",
                     "rows": 3,
                 }
             ),
             "notes": forms.Textarea(
-                attrs={"placeholder": "Anything else we should know? (optional)", "rows": 3}
+                attrs={
+                    "placeholder": "Anything else we should know? Write N/A if none",
+                    "rows": 3,
+                }
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name == "agreed_to_rules":
+                continue
+            field.required = True
+            field.widget.attrs.setdefault("required", "required")
+            css = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{css} register-input".strip()
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        # Gmail-style address check: valid local-part + @gmail.com only.
+        if not re.fullmatch(r"[a-z0-9._%+\-]+@gmail\.com", email):
+            raise ValidationError(
+                "Please enter a valid Gmail address ending in @gmail.com."
+            )
+        local = email.split("@", 1)[0]
+        if local.startswith(".") or local.endswith(".") or ".." in local:
+            raise ValidationError("That Gmail address looks invalid. Please check it.")
+        return email
+
+    def clean_phone(self):
+        phone = (self.cleaned_data.get("phone") or "").strip()
+        digits = re.sub(r"\D", "", phone)
+        if len(digits) < 8:
+            raise ValidationError("Enter a valid phone number (at least 8 digits).")
+        return phone
+
+    def clean_team_name(self):
+        name = (self.cleaned_data.get("team_name") or "").strip()
+        if len(name) < 2:
+            raise ValidationError("Enter your full team name.")
+        return name
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.tournament_name = DEFAULT_TOURNAMENT_NAME
+        instance.division = TeamRegistration.Division.OPEN_7A
+        if commit:
+            instance.save()
+        return instance
 
 
 class RegisteredPlayerForm(forms.ModelForm):
@@ -91,11 +157,34 @@ class RegisteredPlayerForm(forms.ModelForm):
         model = RegisteredPlayer
         fields = ["name", "jersey_number"]
         widgets = {
-            "name": forms.TextInput(attrs={"placeholder": "Player full name"}),
+            "name": forms.TextInput(
+                attrs={
+                    "placeholder": "Player full name",
+                    "class": "register-input roster-name",
+                    "required": "required",
+                }
+            ),
             "jersey_number": forms.NumberInput(
-                attrs={"placeholder": "#", "min": 0, "max": 99}
+                attrs={
+                    "placeholder": "No.",
+                    "min": 0,
+                    "max": 99,
+                    "class": "register-input roster-jersey",
+                    "inputmode": "numeric",
+                }
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["name"].required = True
+        self.fields["jersey_number"].required = False
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        if not name:
+            raise ValidationError("Player name is required.")
+        return name
 
 
 class BaseRegisteredPlayerFormSet(BaseInlineFormSet):
@@ -103,30 +192,34 @@ class BaseRegisteredPlayerFormSet(BaseInlineFormSet):
         super().clean()
         if any(self.errors):
             return
-        named_players = 0
+        named_players = []
         for form in self.forms:
             cleaned = getattr(form, "cleaned_data", None)
-            if cleaned and cleaned.get("name", "").strip():
-                named_players += 1
-        if named_players == 0:
+            if not cleaned:
+                continue
+            name = (cleaned.get("name") or "").strip()
+            if name:
+                named_players.append(name)
+        if len(named_players) < ROSTER_SIZE:
             raise ValidationError(
-                "Please list at least one player in the roster below."
+                f"All {ROSTER_SIZE} player names are required "
+                f"({len(named_players)} of {ROSTER_SIZE} filled)."
             )
 
 
-# Fixed number of roster rows (see club.models.ROSTER_SIZE) — no "add
-# player" button, exactly ROSTER_SIZE Name/Jersey Number slots every time.
+# Fixed number of roster rows (see club.models.ROSTER_SIZE).
 RegisteredPlayerFormSet = inlineformset_factory(
     TeamRegistration,
     RegisteredPlayer,
     form=RegisteredPlayerForm,
     formset=BaseRegisteredPlayerFormSet,
     extra=ROSTER_SIZE,
+    min_num=ROSTER_SIZE,
     max_num=ROSTER_SIZE,
+    validate_min=True,
     validate_max=True,
     can_delete=False,
 )
-
 
 class MatchAdminForm(forms.ModelForm):
     """Fixture form: group-filtered teams for group stage; free text for knockout."""

@@ -500,3 +500,31 @@ class TeamRegistrationAdmin(admin.ModelAdmin):
         ("Details", {"fields": ("experience", "notes", "agreed_to_rules")}),
         ("Meta", {"fields": ("submitted_at",)}),
     )
+
+    def save_model(self, request, obj, form, change):
+        previous_status = None
+        if change and obj.pk:
+            previous_status = (
+                TeamRegistration.objects.filter(pk=obj.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
+        super().save_model(request, obj, form, change)
+
+        from .models import APPROVED_TEAMS_FOR_SCHEDULE
+
+        # Schedule emails are sent by club.signals; surface a clear admin note.
+        if (
+            obj.status == TeamRegistration.Status.APPROVED
+            and previous_status != TeamRegistration.Status.APPROVED
+        ):
+            approved_count = TeamRegistration.objects.filter(
+                status=TeamRegistration.Status.APPROVED
+            ).count()
+            if approved_count == APPROVED_TEAMS_FOR_SCHEDULE:
+                self.message_user(
+                    request,
+                    f"All {APPROVED_TEAMS_FOR_SCHEDULE} teams are approved — "
+                    "match-schedule notification emails have been sent.",
+                    level=messages.SUCCESS,
+                )

@@ -4,50 +4,51 @@
         <h2>Register Your <span class="text-accent">Team</span></h2>
         <span class="accent-underline"></span>
         <p class="register-cta-text">
-            Want your team to play in a Gurkhali FC tournament? Click below to
-            fill out the registration form — team details, contact info, and
-            your player roster.
+            Enter your squad for {{ default_tournament_name }} —
+            {{ default_division_label }}. All fields are required, including
+            all {{ roster_size }} player names.
         </p>
         <button type="button" class="btn btn-primary" id="open-register-form">Register Your Team</button>
     </div>
 </section>
 
 <div class="form-modal-overlay {% if registration_form.errors or roster_formset.errors or roster_formset.non_form_errors %}is-open{% endif %}" id="register-form-modal">
-    <div class="form-modal-box">
+    <div class="form-modal-box register-modal">
         <button type="button" class="modal-close" id="register-form-close" aria-label="Close">&times;</button>
         <h3 class="form-modal-title">Register Your Team</h3>
+        <p class="register-modal-lead">
+            Complete every field below. Use a Gmail address so we can send your confirmation.
+        </p>
 
-        <form class="contact-form register-form" method="post" action="#register">
+        <form class="contact-form register-form" method="post" action="#register" novalidate>
             {% csrf_token %}
             <input type="hidden" name="form_name" value="registration">
 
-            <div class="form-row">
-                <label>
-                    Tournament
-                    {{ registration_form.tournament_name }}
-                    {{ registration_form.tournament_name.errors }}
-                </label>
-                <label>
-                    Division
-                    {{ registration_form.division }}
-                    {{ registration_form.division.errors }}
-                </label>
+            <div class="register-static-meta" aria-label="Tournament details">
+                <div class="register-static-chip">
+                    <span class="register-static-label">Tournament</span>
+                    <strong>{{ default_tournament_name }}</strong>
+                </div>
+                <div class="register-static-chip">
+                    <span class="register-static-label">Division</span>
+                    <strong>{{ default_division_label }}</strong>
+                </div>
             </div>
 
             <label>
-                Team Name
+                Team Name <span class="req" aria-hidden="true">*</span>
                 {{ registration_form.team_name }}
                 {{ registration_form.team_name.errors }}
             </label>
 
             <div class="form-row">
                 <label>
-                    Manager / Coach Name
+                    Manager / Coach Name <span class="req" aria-hidden="true">*</span>
                     {{ registration_form.manager_name }}
                     {{ registration_form.manager_name.errors }}
                 </label>
                 <label>
-                    Home City / Suburb
+                    Home City / Suburb <span class="req" aria-hidden="true">*</span>
                     {{ registration_form.home_city }}
                     {{ registration_form.home_city.errors }}
                 </label>
@@ -55,32 +56,36 @@
 
             <div class="form-row">
                 <label>
-                    Phone
+                    Phone <span class="req" aria-hidden="true">*</span>
                     {{ registration_form.phone }}
                     {{ registration_form.phone.errors }}
                 </label>
                 <label>
-                    Email
+                    Gmail <span class="req" aria-hidden="true">*</span>
                     {{ registration_form.email }}
                     {{ registration_form.email.errors }}
                 </label>
             </div>
 
             <label>
-                Previous Tournament Experience
+                Previous Tournament Experience <span class="req" aria-hidden="true">*</span>
                 {{ registration_form.experience }}
+                {{ registration_form.experience.errors }}
             </label>
 
             <label>
-                Notes
+                Notes <span class="req" aria-hidden="true">*</span>
                 {{ registration_form.notes }}
+                {{ registration_form.notes.errors }}
             </label>
 
             <div class="roster-section">
                 {{ roster_formset.management_form }}
                 <div class="roster-heading">
                     <h4>Player Roster</h4>
-                    <p class="roster-hint">{{ roster_formset|length }} fixed slots — leave any unused ones blank.</p>
+                    <p class="roster-hint">
+                        {{ roster_size }} names required — jersey number optional.
+                    </p>
                 </div>
                 {% if roster_formset.non_form_errors %}
                     <p class="form-error">{{ roster_formset.non_form_errors.0 }}</p>
@@ -88,13 +93,16 @@
                 <div class="roster-grid">
                     <div class="roster-row roster-row--header">
                         <span>#</span>
-                        <span>Player Name</span>
-                        <span>Jersey #</span>
+                        <span>Player Name *</span>
+                        <span>Jersey</span>
                     </div>
                     {% for player_form in roster_formset %}
                     <div class="roster-row">
                         <span class="roster-index">{{ forloop.counter }}</span>
-                        {{ player_form.name }}
+                        <div class="roster-name-wrap">
+                            {{ player_form.name }}
+                            {{ player_form.name.errors }}
+                        </div>
                         {{ player_form.jersey_number }}
                         {{ player_form.id }}
                     </div>
@@ -104,7 +112,7 @@
 
             <label class="checkbox-label">
                 {{ registration_form.agreed_to_rules }}
-                <span>{{ registration_form.agreed_to_rules.label }}</span>
+                <span>{{ registration_form.agreed_to_rules.label }} <span class="req" aria-hidden="true">*</span></span>
             </label>
             {% if registration_form.agreed_to_rules.errors %}
                 <p class="form-error">{{ registration_form.agreed_to_rules.errors.0 }}</p>

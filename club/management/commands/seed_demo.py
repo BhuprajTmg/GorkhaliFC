@@ -150,15 +150,17 @@ class Command(BaseCommand):
         for team_name in approved_demo_teams:
             reg, created = TeamRegistration.objects.get_or_create(
                 team_name=team_name,
-                tournament_name="Darwin Cup 2026",
+                tournament_name="Dashain Cup 2026",
                 defaults={
-                    "division": TeamRegistration.Division.OPEN_MENS,
+                    "division": TeamRegistration.Division.OPEN_7A,
                     "manager_name": f"{team_name} Manager",
                     "phone": "0400000000",
-                    "email": f"{slugify(team_name) or 'team'}@example.com",
+                    "email": f"{slugify(team_name) or 'team'}@gmail.com",
                     "agreed_to_rules": True,
                     "status": TeamRegistration.Status.APPROVED,
                     "home_city": "Darwin",
+                    "experience": "Demo seed",
+                    "notes": "N/A",
                 },
             )
             if reg.status != TeamRegistration.Status.APPROVED:

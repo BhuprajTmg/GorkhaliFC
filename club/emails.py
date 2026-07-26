@@ -29,8 +29,14 @@ def _notification_recipient(club):
     )
 
 
-def _send(subject, body, recipient, reply_to, attachments=None):
-    if not recipient:
+def _send(subject, body, recipient=None, reply_to=None, attachments=None, recipients=None):
+    to = list(recipients or [])
+    if recipient:
+        to.append(recipient)
+    # De-dupe while preserving order.
+    seen = set()
+    to = [addr for addr in to if addr and not (addr in seen or seen.add(addr))]
+    if not to:
         message = (
             "Email not sent: no recipient configured. Set an email address "
             "on Club Info in the admin, or set CONTACT_NOTIFICATION_EMAIL."
@@ -43,7 +49,7 @@ def _send(subject, body, recipient, reply_to, attachments=None):
         subject=subject,
         body=body,
         from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[recipient],
+        to=to,
         reply_to=[reply_to] if reply_to else None,
     )
     for filename, content, mimetype in attachments or []:
@@ -53,7 +59,7 @@ def _send(subject, body, recipient, reply_to, attachments=None):
         email.send(fail_silently=False)
     except Exception as exc:  # noqa: BLE001 - we want to log *any* send failure
         message = (
-            f"Failed to send email to {recipient} using "
+            f"Failed to send email to {to} using "
             f"{settings.EMAIL_BACKEND} (host={settings.EMAIL_HOST}, "
             f"user={settings.EMAIL_HOST_USER or '(not set)'}): {exc!r}\n"
             "If you haven't already, add EMAIL_HOST_USER and "
@@ -64,7 +70,7 @@ def _send(subject, body, recipient, reply_to, attachments=None):
         logger.error(message)
         print(f"[club.emails] {message}")
     else:
-        print(f"[club.emails] Email sent to {recipient}: {subject}")
+        print(f"[club.emails] Email sent to {to}: {subject}")
 
 
 def _roster_rows(registration):
@@ -304,9 +310,10 @@ def send_registration_notification(registration, club):
 
     roster = _roster_rows(registration)
     roster_lines = "\n".join(f"  #{jersey} — {name}" for jersey, name in roster) or "  (none listed)"
+    club_name = club.name if club else "Gurkhali FC"
 
     _send(
-        subject=f"[{club.name if club else 'Gurkhali FC'}] New tournament registration: {registration.team_name}",
+        subject=f"[{club_name}] New tournament registration: {registration.team_name}",
         body=(
             f"A new team has registered for a tournament via the club website.\n\n"
             f"Tournament: {registration.tournament_name}\n"
@@ -339,3 +346,58 @@ def send_registration_notification(registration, club):
             ),
         ],
     )
+
+
+def send_registration_received_confirmation(registration, club):
+    """Tell the registering team their application is under review."""
+    club_name = club.name if club else "Gurkhali FC"
+    _send(
+        subject=f"[{club_name}] Registration received — {registration.team_name}",
+        body=(
+            f"Hi {registration.manager_name},\n\n"
+            f"Thanks for registering {registration.team_name} for "
+            f"{registration.tournament_name}.\n\n"
+            "Your team registration is being reviewed and when approved you "
+            "will get notified.\n\n"
+            "Once all 16 teams are approved, you will receive the match "
+            "schedules by email.\n\n"
+            f"Division: {registration.get_division_display()}\n"
+            f"Players listed: {registration.player_count}\n\n"
+            f"— {club_name}"
+        ),
+        recipient=registration.email,
+        reply_to=_notification_recipient(club),
+    )
+
+
+def send_schedule_ready_notifications(club):
+    """Email every approved team that match schedules are ready."""
+    from .models import TeamRegistration
+
+    club_name = club.name if club else "Gurkhali FC"
+    approved = list(
+        TeamRegistration.objects.filter(status=TeamRegistration.Status.APPROVED)
+        .exclude(email="")
+        .order_by("team_name")
+    )
+    if not approved:
+        return 0
+
+    site_hint = "Visit the Gurkhali FC website Schedule section for fixtures and group tables."
+    sent = 0
+    for reg in approved:
+        _send(
+            subject=f"[{club_name}] Match schedules are ready — {reg.tournament_name}",
+            body=(
+                f"Hi {reg.manager_name},\n\n"
+                f"Great news — all 16 teams for {reg.tournament_name} have "
+                f"been approved.\n\n"
+                f"Match schedules are now available for {reg.team_name}.\n"
+                f"{site_hint}\n\n"
+                f"— {club_name}"
+            ),
+            recipient=reg.email,
+            reply_to=_notification_recipient(club),
+        )
+        sent += 1
+    return sent

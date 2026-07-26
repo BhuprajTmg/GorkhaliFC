@@ -465,10 +465,13 @@ class GroupTeam(models.Model):
 
 
 # Fixed squad size for the tournament registration roster — the form shows
-# exactly this many Name / Jersey Number slots (no "add player" button).
-# Change this single constant to resize the roster everywhere (form, admin,
-# Word/PDF exports) at once.
-ROSTER_SIZE = 15
+# exactly this many Name slots (jersey optional). Change this single constant
+# to resize the roster everywhere (form, admin, Word/PDF exports) at once.
+ROSTER_SIZE = 12
+
+# Public registration is locked to this tournament / division.
+DEFAULT_TOURNAMENT_NAME = "Dashain Cup 2026"
+APPROVED_TEAMS_FOR_SCHEDULE = 16
 
 
 class TeamRegistration(models.Model):
@@ -478,12 +481,7 @@ class TeamRegistration(models.Model):
     """
 
     class Division(models.TextChoices):
-        OPEN_MENS = "OPEN_M", "Open / Men's"
-        WOMENS = "WOMENS", "Women's"
-        MIXED = "MIXED", "Mixed"
-        YOUTH = "YOUTH", "Youth / Junior"
-        MASTERS = "MASTERS", "Masters (35+)"
-        CORPORATE = "CORP", "Corporate / Social"
+        OPEN_7A = "OPEN_7A", "Open 7A-side football competition"
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending review"
@@ -493,23 +491,32 @@ class TeamRegistration(models.Model):
 
     tournament_name = models.CharField(
         max_length=150,
-        help_text='Which tournament the team is registering for, e.g. "Gurkhali Cup 2026".',
+        default=DEFAULT_TOURNAMENT_NAME,
+        help_text='Fixed for this season — "Dashain Cup 2026".',
     )
     team_name = models.CharField(max_length=120)
-    division = models.CharField(max_length=10, choices=Division.choices, default=Division.OPEN_MENS)
+    division = models.CharField(
+        max_length=10,
+        choices=Division.choices,
+        default=Division.OPEN_7A,
+    )
     manager_name = models.CharField(max_length=120, help_text="Team manager or coach's full name.")
     phone = models.CharField(max_length=30)
-    email = models.EmailField()
+    email = models.EmailField(
+        help_text="Must be a valid Gmail address (example@gmail.com)."
+    )
     player_count = models.PositiveSmallIntegerField(
         default=0,
         editable=False,
         help_text="Automatically set to the number of named players in the roster below.",
     )
-    home_city = models.CharField(max_length=120, blank=True)
+    home_city = models.CharField(max_length=120)
     experience = models.TextField(
-        blank=True, help_text="Previous tournament experience, if any (optional)."
+        help_text="Previous tournament experience (required)."
     )
-    notes = models.TextField(blank=True, help_text="Anything else the organisers should know (optional).")
+    notes = models.TextField(
+        help_text="Anything else the organisers should know (required — write N/A if none)."
+    )
     agreed_to_rules = models.BooleanField(
         default=False,
         help_text="Team confirmed they agree to the tournament rules and code of conduct.",

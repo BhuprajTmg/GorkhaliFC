@@ -1,9 +1,15 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .emails import send_contact_notification, send_registration_notification
+from .emails import (
+    send_contact_notification,
+    send_registration_notification,
+    send_registration_received_confirmation,
+)
 from .forms import ContactForm, RegisteredPlayerFormSet, TeamRegistrationForm
 from .models import (
+    DEFAULT_TOURNAMENT_NAME,
+    ROSTER_SIZE,
     ClubInfo,
     CompetitionGroup,
     GalleryCategory,
@@ -42,11 +48,12 @@ def home(request):
                 roster_formset.save()
                 registration.refresh_player_count()
                 send_registration_notification(registration, club)
+                send_registration_received_confirmation(registration, club)
                 messages.success(
                     request,
                     f"Thanks, {registration.team_name}! Your registration for "
-                    f"{registration.tournament_name} has been received — we'll "
-                    f"be in touch soon.",
+                    f"{registration.tournament_name} is being reviewed — check "
+                    f"your Gmail for confirmation.",
                 )
                 return redirect(f"{request.path}#register")
             messages.error(
@@ -110,6 +117,9 @@ def home(request):
         "form": contact_form,
         "registration_form": registration_form,
         "roster_formset": roster_formset,
+        "default_tournament_name": DEFAULT_TOURNAMENT_NAME,
+        "default_division_label": TeamRegistration.Division.OPEN_7A.label,
+        "roster_size": ROSTER_SIZE,
     }
     return render(request, "club/home.html", context)
 

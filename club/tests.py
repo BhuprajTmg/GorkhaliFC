@@ -427,13 +427,16 @@ class MatchGroupAutoAddTests(TestCase):
         )
         for name in ("Chillax 1", "Gurkhali FC Red"):
             TeamRegistration.objects.create(
-                tournament_name="Darwin Cup 2026",
+                tournament_name="Dashain Cup 2026",
                 team_name=name,
                 manager_name="Manager",
                 phone="0400000000",
-                email=f"{name.replace(' ', '').lower()}@example.com",
+                email=f"{name.replace(' ', '').lower()}@gmail.com",
                 agreed_to_rules=True,
                 status=TeamRegistration.Status.APPROVED,
+                home_city="Darwin",
+                experience="N/A",
+                notes="N/A",
             )
 
     def test_saving_match_with_group_adds_missing_teams(self):
@@ -748,3 +751,150 @@ class GroupFilteredMatchDropdownTests(TestCase):
             sorted(response.json()["teams"]),
             ["Mindil Beach SC", "Nightcliff FC"],
         )
+
+
+class TeamRegistrationFormTests(TestCase):
+    def setUp(self):
+        self.club = ClubInfo.objects.create(
+            name="Gurkhali FC", founded_year=2023, email="club@gmail.com"
+        )
+
+    def _base_registration_data(self, email="teammanager@gmail.com"):
+        from club.forms import RegisteredPlayerFormSet, TeamRegistrationForm
+        from club.models import ROSTER_SIZE
+
+        data = {
+            "form_name": "registration",
+            "registration-team_name": "Himalayan United",
+            "registration-manager_name": "Ram Bahadur",
+            "registration-phone": "0400123456",
+            "registration-email": email,
+            "registration-home_city": "Darwin",
+            "registration-experience": "Played local cup 2025",
+            "registration-notes": "N/A",
+            "registration-agreed_to_rules": "on",
+            "roster-TOTAL_FORMS": str(ROSTER_SIZE),
+            "roster-INITIAL_FORMS": "0",
+            "roster-MIN_NUM_FORMS": str(ROSTER_SIZE),
+            "roster-MAX_NUM_FORMS": str(ROSTER_SIZE),
+        }
+        for i in range(ROSTER_SIZE):
+            data[f"roster-{i}-name"] = f"Player {i + 1}"
+            data[f"roster-{i}-jersey_number"] = "" if i % 2 else str(i + 1)
+            data[f"roster-{i}-id"] = ""
+        return data
+
+    def test_gmail_required(self):
+        from club.forms import TeamRegistrationForm
+
+        form = TeamRegistrationForm(
+            data={
+                "team_name": "Test FC",
+                "manager_name": "Coach",
+                "phone": "0400123456",
+                "email": "coach@yahoo.com",
+                "home_city": "Darwin",
+                "experience": "N/A",
+                "notes": "N/A",
+                "agreed_to_rules": True,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    def test_accepts_valid_gmail(self):
+        from club.forms import TeamRegistrationForm
+
+        form = TeamRegistrationForm(
+            data={
+                "team_name": "Test FC",
+                "manager_name": "Coach",
+                "phone": "0400123456",
+                "email": "coach.team@gmail.com",
+                "home_city": "Darwin",
+                "experience": "N/A",
+                "notes": "N/A",
+                "agreed_to_rules": True,
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        reg = form.save()
+        self.assertEqual(reg.tournament_name, "Dashain Cup 2026")
+        self.assertEqual(reg.division, TeamRegistration.Division.OPEN_7A)
+
+    def test_all_twelve_player_names_required(self):
+        from club.forms import RegisteredPlayerFormSet
+        from club.models import ROSTER_SIZE
+
+        data = {
+            "players-TOTAL_FORMS": str(ROSTER_SIZE),
+            "players-INITIAL_FORMS": "0",
+            "players-MIN_NUM_FORMS": str(ROSTER_SIZE),
+            "players-MAX_NUM_FORMS": str(ROSTER_SIZE),
+        }
+        for i in range(ROSTER_SIZE):
+            data[f"players-{i}-name"] = f"Player {i + 1}" if i < 11 else ""
+            data[f"players-{i}-jersey_number"] = ""
+            data[f"players-{i}-id"] = ""
+
+        formset = RegisteredPlayerFormSet(data, instance=TeamRegistration(), prefix="players")
+        self.assertFalse(formset.is_valid())
+
+    def test_submit_sends_confirmation_email(self):
+        from django.core import mail
+
+        response = self.client.post("/", self._base_registration_data(), follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 1)
+        reg = TeamRegistration.objects.get()
+        self.assertEqual(reg.player_count, 12)
+        self.assertEqual(reg.tournament_name, "Dashain Cup 2026")
+
+        subjects = [m.subject for m in mail.outbox]
+        self.assertTrue(any("Registration received" in s for s in subjects))
+        confirm = next(m for m in mail.outbox if "Registration received" in m.subject)
+        self.assertEqual(confirm.to, ["teammanager@gmail.com"])
+        self.assertIn(
+            "Your team registration is being reviewed and when approved you will get notified.",
+            confirm.body,
+        )
+
+    def test_sixteenth_approval_emails_schedules(self):
+        from django.core import mail
+
+        from club.models import APPROVED_TEAMS_FOR_SCHEDULE
+
+        for i in range(APPROVED_TEAMS_FOR_SCHEDULE - 1):
+            TeamRegistration.objects.create(
+                tournament_name="Dashain Cup 2026",
+                team_name=f"Team {i + 1}",
+                manager_name="Manager",
+                phone="0400000000",
+                email=f"team{i + 1}@gmail.com",
+                agreed_to_rules=True,
+                status=TeamRegistration.Status.APPROVED,
+                home_city="Darwin",
+                experience="N/A",
+                notes="N/A",
+            )
+
+        pending = TeamRegistration.objects.create(
+            tournament_name="Dashain Cup 2026",
+            team_name="Team 16",
+            manager_name="Manager",
+            phone="0400000000",
+            email="team16@gmail.com",
+            agreed_to_rules=True,
+            status=TeamRegistration.Status.PENDING,
+            home_city="Darwin",
+            experience="N/A",
+            notes="N/A",
+        )
+        mail.outbox.clear()
+        pending.status = TeamRegistration.Status.APPROVED
+        pending.save()
+
+        schedule_mails = [
+            m for m in mail.outbox if "Match schedules are ready" in m.subject
+        ]
+        self.assertEqual(len(schedule_mails), APPROVED_TEAMS_FOR_SCHEDULE)
