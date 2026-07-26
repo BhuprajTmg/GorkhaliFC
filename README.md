@@ -26,7 +26,8 @@ with the nav bar linking to in-page sections via anchors
     very top, with a pulsing red dot, a glowing highlighted border, and
     the live score.
   - The next **5 scheduled fixtures** are shown (first as Next Match,
-    the rest as Upcoming).
+    the rest as Upcoming). During the group stage these are group games;
+    after groups finish they switch to real knockout ties.
   - Matches marked **Finished** (with a final score) appear under
     Results for **5 minutes**, then disappear. Finishing a match also
     syncs that score into the matching World Cup group table.
