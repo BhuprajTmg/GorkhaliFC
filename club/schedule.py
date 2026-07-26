@@ -170,10 +170,20 @@ def _slots_for_stage(stage, matches_by_stage, planned_pairings=None):
 def build_knockout_bracket_display():
     """Structured QF → SF → Final tree for the public knockout UI.
 
-    Uses real knockout fixtures when present. Otherwise previews the first
-    round from current group standings and shows TBD slots for later rounds.
+    Hidden until every active group stage is finished. Then uses real
+    knockout fixtures when present, or previews top-2 pairings.
     """
     from .knockout import all_group_stages_complete, planned_first_round_pairings
+
+    if not all_group_stages_complete():
+        return {
+            "has_fixtures": False,
+            "group_stage_complete": False,
+            "columns": [],
+            "third": None,
+            "opening_stage": None,
+            "visible": False,
+        }
 
     matches_by_stage = {}
     for stage in KNOCKOUT_STAGE_ORDER:
@@ -260,10 +270,11 @@ def build_knockout_bracket_display():
 
     return {
         "has_fixtures": has_fixtures,
-        "group_stage_complete": all_group_stages_complete(),
+        "group_stage_complete": True,
         "columns": columns,
         "third": third_slots[0] if show_third and third_slots else None,
         "opening_stage": opening_stage,
+        "visible": True,
     }
 
 
@@ -280,12 +291,17 @@ def _stage_rank(stage):
 
 def build_match_schedule(now=None):
     """Return live, next, upcoming, knockout, and recently-finished lists."""
-    now = now or timezone.now()
+    from .knockout import all_group_stages_complete
 
+    now = now or timezone.now()
+    group_stage_complete = all_group_stages_complete()
+
+    live_qs = Match.objects.filter(status=Match.Status.LIVE)
+    if not group_stage_complete:
+        # While the group stage is ongoing, keep knockout fixtures off the site.
+        live_qs = live_qs.filter(stage=Match.Stage.GROUP)
     live_matches = list(
-        Match.objects.filter(status=Match.Status.LIVE).order_by(
-            "match_date", "match_time", "pk"
-        )
+        live_qs.order_by("match_date", "match_time", "pk")
     )
 
     scheduled_group = list(
@@ -300,29 +316,30 @@ def build_match_schedule(now=None):
     # Flat knockout lists kept for tests / secondary use; public UI uses
     # the visual bracket from build_knockout_bracket_display().
     knockout_rounds = []
-    for stage in KNOCKOUT_STAGE_ORDER:
-        matches = list(
-            Match.objects.filter(stage=stage)
-            .exclude(status=Match.Status.FINISHED)
-            .order_by("bracket_order", "match_date", "match_time", "pk")
-        )
-        cutoff = now - timedelta(minutes=FINISHED_VISIBLE_MINUTES)
-        recent_finished = list(
-            Match.objects.filter(
-                stage=stage,
-                status=Match.Status.FINISHED,
-                finished_at__gte=cutoff,
-            ).order_by("bracket_order", "-finished_at")
-        )
-        combined = matches + [m for m in recent_finished if m not in matches]
-        if combined:
-            knockout_rounds.append(
-                {
-                    "stage": stage,
-                    "label": dict(Match.Stage.choices).get(stage, stage),
-                    "matches": combined,
-                }
+    if group_stage_complete:
+        for stage in KNOCKOUT_STAGE_ORDER:
+            matches = list(
+                Match.objects.filter(stage=stage)
+                .exclude(status=Match.Status.FINISHED)
+                .order_by("bracket_order", "match_date", "match_time", "pk")
             )
+            cutoff = now - timedelta(minutes=FINISHED_VISIBLE_MINUTES)
+            recent_finished = list(
+                Match.objects.filter(
+                    stage=stage,
+                    status=Match.Status.FINISHED,
+                    finished_at__gte=cutoff,
+                ).order_by("bracket_order", "-finished_at")
+            )
+            combined = matches + [m for m in recent_finished if m not in matches]
+            if combined:
+                knockout_rounds.append(
+                    {
+                        "stage": stage,
+                        "label": dict(Match.Stage.choices).get(stage, stage),
+                        "matches": combined,
+                    }
+                )
 
     cutoff = now - timedelta(minutes=FINISHED_VISIBLE_MINUTES)
     past_matches = list(

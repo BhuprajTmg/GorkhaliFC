@@ -12,7 +12,10 @@ from club.knockout import (
     all_group_stages_complete,
     generate_knockout_bracket,
     group_stage_progress,
+    planned_first_round_pairings,
+    qualifier_rows,
     qualifiers_from_groups,
+    reset_knockout_fixtures,
 )
 from club.models import (
     ClubInfo,
@@ -112,7 +115,36 @@ class KnockoutBracketDisplayTests(TestCase):
                     goals_against=i,
                 )
 
-    def test_preview_shows_qf_sf_final_columns(self):
+    def _finish_all_group_stages(self):
+        for group in CompetitionGroup.objects.filter(is_active=True):
+            teams = list(group.teams.all())
+            Match.objects.create(
+                home_team=teams[0].name,
+                away_team=teams[-1].name,
+                group=group,
+                stage=Match.Stage.GROUP,
+                match_date=datetime.date(2026, 8, 1),
+                status=Match.Status.FINISHED,
+                home_score=1,
+                away_score=0,
+            )
+
+    def test_hides_bracket_until_group_stage_complete(self):
+        Match.objects.create(
+            home_team="A1",
+            away_team="B2",
+            stage=Match.Stage.QF,
+            bracket_order=1,
+            match_date=datetime.date(2026, 8, 20),
+            status=Match.Status.SCHEDULED,
+        )
+        bracket = build_knockout_bracket_display()
+        self.assertFalse(bracket["group_stage_complete"])
+        self.assertFalse(bracket["visible"])
+        self.assertEqual(bracket["columns"], [])
+
+    def test_preview_shows_qf_sf_final_columns_after_groups_finish(self):
+        self._finish_all_group_stages()
         bracket = build_knockout_bracket_display()
         stages = [col["stage"] for col in bracket["columns"]]
         self.assertEqual(
@@ -120,9 +152,10 @@ class KnockoutBracketDisplayTests(TestCase):
             [Match.Stage.QF, Match.Stage.SF, Match.Stage.FINAL],
         )
         self.assertEqual(len(bracket["columns"][0]["slots"]), 4)
-        self.assertTrue(bracket["columns"][0]["slots"][0]["is_placeholder"])
+        self.assertTrue(bracket["visible"])
 
     def test_real_qf_fixtures_appear_in_bracket(self):
+        self._finish_all_group_stages()
         Match.objects.create(
             home_team="A1",
             away_team="B2",
@@ -434,6 +467,33 @@ class KnockoutBracketTests(TestCase):
         result = generate_knockout_bracket(require_group_stage_complete=True)
         self.assertTrue(result.errors)
         self.assertEqual(Match.objects.exclude(stage=Match.Stage.GROUP).count(), 0)
+
+    def test_hides_qualifier_team_names_until_group_finished(self):
+        rows = qualifier_rows(self.groups)
+        self.assertTrue(all(row["first"] == "TBD" for row in rows))
+        stage, pairings = planned_first_round_pairings(self.groups)
+        self.assertEqual(stage, Match.Stage.QF)
+        self.assertTrue(all(not p["teams_revealed"] for p in pairings))
+        self.assertEqual(pairings[0]["home"], "1A")
+
+    def test_reset_removes_knockout_fixtures(self):
+        Match.objects.create(
+            home_team="A1",
+            away_team="B2",
+            stage=Match.Stage.QF,
+            bracket_order=1,
+            match_date=datetime.date(2026, 9, 1),
+            status=Match.Status.SCHEDULED,
+        )
+        hub = KnockoutBracket.get_solo()
+        hub.generated_at = timezone.now()
+        hub.save(update_fields=["generated_at"])
+
+        result = reset_knockout_fixtures()
+        self.assertTrue(result.advanced)
+        self.assertEqual(Match.objects.exclude(stage=Match.Stage.GROUP).count(), 0)
+        hub.refresh_from_db()
+        self.assertIsNone(hub.generated_at)
 
     def test_knockout_hub_exists(self):
         hub = KnockoutBracket.get_solo()

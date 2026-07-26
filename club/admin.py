@@ -12,6 +12,7 @@ from .knockout import (
     generate_knockout_bracket,
     planned_first_round_pairings,
     qualifier_rows,
+    reset_knockout_fixtures,
 )
 from .models import (
     ClubInfo,
@@ -317,11 +318,11 @@ class KnockoutBracketAdmin(admin.ModelAdmin):
         )
         return super().changeform_view(request, object_id, form_url, extra_context)
 
-    def _run_generate(self, request, obj, *, force):
+    def _run_generate(self, request, obj):
         result = generate_knockout_bracket(
             start_date=obj.start_date,
             include_third_place=obj.include_third_place,
-            require_group_stage_complete=not force,
+            require_group_stage_complete=True,
         )
         for error in result.errors:
             self.message_user(request, error, level=messages.ERROR)
@@ -331,7 +332,7 @@ class KnockoutBracketAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 f"Created {len(result.created)} knockout fixture(s). "
-                "Open Matches (filter by Stage) or View site → Knockout.",
+                "Open Matches (filter by Stage) or View site → Bracket.",
                 level=messages.SUCCESS,
             )
         if result.skipped:
@@ -343,10 +344,14 @@ class KnockoutBracketAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_generate_knockout" in request.POST:
-            self._run_generate(request, obj, force=False)
+            self._run_generate(request, obj)
             return HttpResponseRedirect(request.path)
-        if "_generate_knockout_force" in request.POST:
-            self._run_generate(request, obj, force=True)
+        if "_reset_knockout" in request.POST:
+            result = reset_knockout_fixtures()
+            for note in result.advanced:
+                self.message_user(request, note, level=messages.SUCCESS)
+            for note in result.skipped:
+                self.message_user(request, note, level=messages.WARNING)
             return HttpResponseRedirect(request.path)
         if "_advance_knockout" in request.POST:
             result = advance_knockout_winners()

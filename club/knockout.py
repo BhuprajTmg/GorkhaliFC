@@ -65,15 +65,25 @@ def all_group_stages_complete(groups=None):
 
 
 def qualifier_rows(groups=None):
-    """Rows for the Knockout admin page: group, progress, 1st, 2nd."""
+    """Rows for the Knockout admin page: group, progress, 1st, 2nd.
+
+    Team names stay hidden (TBD) until that group's stage is finished.
+    """
     groups = groups if groups is not None else active_groups()
     rows = []
     for group in groups:
         complete, finished, total = group_stage_progress(group)
         standings = group.standings()
-        first = standings[0]["team"].name if len(standings) >= 1 else "—"
-        second = standings[1]["team"].name if len(standings) >= 2 else "—"
         letter = group_letter(group)
+        if complete and len(standings) >= 2:
+            first = standings[0]["team"].name
+            second = standings[1]["team"].name
+        elif complete and len(standings) >= 1:
+            first = standings[0]["team"].name
+            second = "—"
+        else:
+            first = "TBD"
+            second = "TBD"
         rows.append(
             {
                 "group": group,
@@ -91,25 +101,47 @@ def qualifier_rows(groups=None):
 
 
 def planned_first_round_pairings(groups=None):
-    """Human-readable first-round knockout pairings from current tables."""
+    """First-round knockout pairings.
+
+    Seed codes always show. Real team names only appear once every
+    group stage is finished — otherwise home/away stay as seeds (1A, 2B…).
+    """
     groups = groups if groups is not None else active_groups()
     groups = [g for g in groups if g.teams.count() >= 2]
-    qualifiers = qualifiers_from_groups(groups)
     letters = sorted({group_letter(g) for g in groups})
     if len(letters) < 2:
         return None, []
     stage, pair_codes = _pairing_plan(letters)
+    reveal_teams = all_group_stages_complete(groups)
+    qualifiers = qualifiers_from_groups(groups) if reveal_teams else {}
     pairings = []
     for home_code, away_code in pair_codes:
         pairings.append(
             {
                 "home_seed": home_code,
                 "away_seed": away_code,
-                "home": qualifiers.get(home_code, f"? ({home_code})"),
-                "away": qualifiers.get(away_code, f"? ({away_code})"),
+                "home": qualifiers.get(home_code, home_code),
+                "away": qualifiers.get(away_code, away_code),
+                "teams_revealed": reveal_teams,
             }
         )
     return stage, pairings
+
+
+def reset_knockout_fixtures():
+    """Delete all knockout matches and clear the hub generated timestamp."""
+    from .models import KnockoutBracket
+
+    result = KnockoutResult()
+    qs = Match.objects.exclude(stage=Match.Stage.GROUP)
+    count = qs.count()
+    qs.delete()
+    KnockoutBracket.objects.update(generated_at=None)
+    if count:
+        result.advanced.append(f"Removed {count} knockout match(es).")
+    else:
+        result.skipped.append("No knockout fixtures to remove.")
+    return result
 
 
 def qualifiers_from_groups(groups):
@@ -203,8 +235,8 @@ def generate_knockout_bracket(
             if not group_stage_progress(g)[0]
         ]
         result.errors.append(
-            "Group stage is not finished yet. Finish all group matches first, "
-            "or use Generate anyway. Incomplete: " + "; ".join(incomplete)
+            "Group stage is not finished yet. Finish all group matches first. "
+            "Incomplete: " + "; ".join(incomplete)
         )
         return result
 

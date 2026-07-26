@@ -6,11 +6,11 @@
 <div class="knockout-hub" style="margin: 24px 0; padding: 20px; border: 1px solid var(--hairline-color, #333); border-radius: 6px; background: var(--body-bg, #1e1e1e);">
     <h2 style="margin-top: 0;">Group stage → Knockout qualifiers</h2>
     <p style="color: var(--body-quiet-color, #999);">
-        Top 2 from each active competition group (current standings).
+        Top 2 from each active competition group.
         {% if group_stage_complete %}
-        <strong style="color: #7dcea0;">All group stages finished — ready to generate.</strong>
+        <strong style="color: #7dcea0;">All group stages finished — team names unlocked. Ready to generate.</strong>
         {% else %}
-        <strong style="color: #f5b041;">Finish every group-stage match before generating (or use Generate anyway).</strong>
+        <strong style="color: #f5b041;">Group stage still in progress — knockout teams stay hidden (TBD) until every group match is finished.</strong>
         {% endif %}
     </p>
 
@@ -57,6 +57,7 @@
     <h3 style="margin-bottom: 8px;">First knockout round
         {% if first_knockout_stage %}({{ first_knockout_stage }}){% endif %}
     </h3>
+    {% if group_stage_complete %}
     <ul style="margin: 0 0 16px; padding-left: 20px;">
         {% for pair in planned_pairings %}
         <li style="margin: 4px 0;">
@@ -67,13 +68,29 @@
         </li>
         {% endfor %}
     </ul>
+    {% else %}
+    <p style="color: var(--body-quiet-color, #999); margin: 0 0 8px;">
+        Seed bracket only — team names unlock when the group stage is complete:
+    </p>
+    <ul style="margin: 0 0 16px; padding-left: 20px;">
+        {% for pair in planned_pairings %}
+        <li style="margin: 4px 0;">
+            <strong>{{ pair.home_seed }}</strong> vs <strong>{{ pair.away_seed }}</strong>
+            <span style="color: var(--body-quiet-color, #999);">— TBD vs TBD</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
     {% endif %}
 
     {% if knockout_match_count %}
-    <p style="color: var(--body-quiet-color, #999);">
-        Knockout fixtures already in Matches: <strong>{{ knockout_match_count }}</strong>
+    <p style="color: {% if group_stage_complete %}var(--body-quiet-color, #999){% else %}#e74c3c{% endif %};">
+        Knockout fixtures currently in Matches: <strong>{{ knockout_match_count }}</strong>
         {% if original.generated_at %}
         — last generated {{ original.generated_at }}
+        {% endif %}
+        {% if not group_stage_complete %}
+        <br><strong>Group stage is incomplete — use Reset knockout fixtures to clear these early matches.</strong>
         {% endif %}
     </p>
     {% endif %}
@@ -89,14 +106,14 @@
         value="Generate knockout fixtures"
         name="_generate_knockout"
         style="background: #d81e3f; border-color: #d81e3f;"
-        onclick="return confirm('Create the World Cup knockout from the top 2 of each group? Existing knockout slots are skipped.');"
+        onclick="return confirm('Create the World Cup knockout from the top 2 of each finished group? Existing knockout slots are skipped.');"
     >
     <input
         type="submit"
-        value="Generate anyway (group stage incomplete)"
-        name="_generate_knockout_force"
-        style="background: #a8710a; border-color: #a8710a;"
-        onclick="return confirm('Group stage may still be incomplete. Generate knockout from CURRENT standings anyway?');"
+        value="Reset knockout fixtures"
+        name="_reset_knockout"
+        style="background: #6c3483; border-color: #6c3483;"
+        onclick="return confirm('Delete ALL knockout matches (QF / SF / Final / 3rd) and clear the generated timestamp? Group-stage matches are kept.');"
     >
     <input
         type="submit"
@@ -106,7 +123,7 @@
         onclick="return confirm('Fill the next round from finished knockout results?');"
     >
     <p style="margin: 8px 0 0; color: var(--body-quiet-color, #999); font-size: 12px;">
-        4 groups → Quarter-finals → Semi-finals → Final (+ 3rd place). Fixtures appear under Matches and on the public Knockout schedule.
+        Knockout only unlocks after every group-stage match is Finished. The public site shows group tables until then.
     </p>
 </div>
 {% endif %}

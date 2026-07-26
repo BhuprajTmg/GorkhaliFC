@@ -5,6 +5,8 @@
         <span class="accent-underline"></span>
 
         <div class="section-body">
+            {% if knockout_bracket.group_stage_complete and knockout_bracket.visible %}
+            {# ---- Knockout unlocked (group stage finished) ---- #}
             <div class="knockout-stage" id="table">
                 <div class="knockout-stage-layout">
                     <div class="knockout-rounds-block">
@@ -16,7 +18,7 @@
                                 </h3>
                             </div>
                             <p class="knockout-bracket-hint">
-                                Hover a round to lift it — click to open the full ties, just like the group tables.
+                                Group stage complete. Hover a round to lift it — click to open the full ties.
                             </p>
                         </div>
 
@@ -63,7 +65,7 @@
                         </div>
                         {% else %}
                         <div class="knockout-bracket-empty">
-                            <p>Knockout path will appear here once groups are set up.</p>
+                            <p>Group stage is done — generate the knockout from Admin → Club → Knockout.</p>
                         </div>
                         {% endif %}
                     </div>
@@ -166,6 +168,49 @@
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
+
+            {% else %}
+            {# ---- Group stage ongoing: tables only, no knockout ---- #}
+            {% if competition_groups %}
+            <div class="group-standings-section" id="table">
+                <div class="group-standings-intro">
+                    <div>
+                        <p class="group-standings-kicker">Tournament</p>
+                        <h3 class="group-standings-heading">Group <span class="text-accent">Tables</span></h3>
+                    </div>
+                    <p class="group-standings-hint">
+                        Knockout bracket unlocks when every group-stage match is finished.
+                        Click a group to expand the full standings.
+                    </p>
+                </div>
+
+                <div class="group-grid" id="group-grid">
+                    {% for item in competition_groups %}
+                    <button
+                        type="button"
+                        class="group-card"
+                        data-group-target="group-panel-{{ item.group.pk }}"
+                        aria-haspopup="dialog"
+                        aria-controls="group-table-overlay"
+                    >
+                        <div class="group-card-inner">
+                            <div class="group-card-banner">
+                                <span class="group-card-name">{{ item.group.name }}</span>
+                                {% if item.group.season %}
+                                <span class="group-card-season">{{ item.group.season }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="group-card-table">
+                                {% include "club/includes/_group_table.html" with standings=item.standings variant="compact" %}
+                            </div>
+                            <span class="group-card-cta">View full table</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
 
             {% if competition_groups %}
@@ -276,7 +321,13 @@
             </div>
             {% endif %}
 
-            <p class="schedule-note">&#9888; Next 5 group fixtures shown. Click a knockout round card to expand it — use Tables for group standings.</p>
+            <p class="schedule-note">
+                {% if knockout_bracket.group_stage_complete %}
+                &#9888; Next 5 group fixtures shown. Knockout rounds are unlocked — click a round card to expand it.
+                {% else %}
+                &#9888; Next 5 group fixtures shown. Knockout stays hidden until every group-stage match is marked Finished.
+                {% endif %}
+            </p>
         </div>
     </div>
 </section>

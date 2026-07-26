@@ -30,10 +30,11 @@ with the nav bar linking to in-page sections via anchors
   - Matches marked **Finished** (with a final score) appear under
     Results for **5 minutes**, then disappear. Finishing a match also
     syncs that score into the matching World Cup group table.
-  - Interactive **knockout round cards** (Quarter-finals → Semi-finals →
-    Final) with hover lift and click-to-expand overlays, matching the group
-    table interaction. **Group tables** stay on a side **Tables** button.
-    Edit groups/teams under **Competition groups** in the admin.
+  - While the **group stage is ongoing**, only the **group tables** are shown.
+    After every group match is Finished, interactive **knockout round cards**
+    (QF → SF → Final) unlock with hover/click overlays; group tables move to a
+    side **Tables** button. Admin → Club → Knockout can generate or **reset**
+    knockout fixtures.
 - **Register** — a "Register Your Team" button that opens a floating,
   semi-transparent form overlay (doesn't take up space on the page until
   clicked) with: team name, division, manager/coach contact, plus a

@@ -141,21 +141,36 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  let pendingGroupPanel = null;
   const groupModal = wireFadeOverlay(groupOverlay, {
     bodyClass: "group-overlay-open",
     closeBtn: document.getElementById("group-overlay-close"),
     onOpen: function () {
       const firstPanel = document.querySelector("[data-group-panel]");
-      if (firstPanel) setActiveGroupTab(firstPanel.id);
+      const target = pendingGroupPanel || (firstPanel && firstPanel.id);
+      if (target) setActiveGroupTab(target);
+      pendingGroupPanel = null;
     },
   });
 
   if (openGroupTablesBtn && groupModal) {
     openGroupTablesBtn.addEventListener("click", function () {
+      pendingGroupPanel = null;
       if (knockoutModal) knockoutModal.close();
       groupModal.open();
     });
   }
+
+  // Group-stage cards (shown while knockout is locked).
+  document
+    .querySelectorAll(".group-card[data-group-target]")
+    .forEach(function (card) {
+      card.addEventListener("click", function () {
+        pendingGroupPanel = card.getAttribute("data-group-target");
+        if (knockoutModal) knockoutModal.close();
+        if (groupModal) groupModal.open();
+      });
+    });
 
   groupTabs.forEach(function (tab) {
     tab.addEventListener("click", function () {
