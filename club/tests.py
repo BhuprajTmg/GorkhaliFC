@@ -9,6 +9,7 @@ from club.group_fixtures import (
     world_cup_group_rounds,
 )
 from club.knockout import (
+    advance_knockout_winners,
     all_group_stages_complete,
     generate_knockout_bracket,
     group_stage_progress,
@@ -95,6 +96,11 @@ class MatchScheduleTests(TestCase):
 
     def test_next_and_upcoming_use_knockout_after_group_stage(self):
         ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        hub = KnockoutBracket.get_solo()
+        hub.start_date = datetime.date(2026, 9, 1)
+        hub.save(update_fields=["start_date"])
+
+        # Create every group first so auto-schedule waits for all four.
         groups = []
         for letter in "ABCD":
             group = CompetitionGroup.objects.create(
@@ -108,6 +114,9 @@ class MatchScheduleTests(TestCase):
                     won=1 if index == 0 else 0,
                     lost=0 if index == 0 else 1,
                 )
+            groups.append(group)
+
+        for letter, group in zip("ABCD", groups):
             Match.objects.create(
                 home_team=f"{letter}1",
                 away_team=f"{letter}4",
@@ -118,26 +127,14 @@ class MatchScheduleTests(TestCase):
                 home_score=2,
                 away_score=0,
             )
-            groups.append(group)
 
-        qf1 = Match.objects.create(
-            home_team="A1",
-            away_team="B2",
-            stage=Match.Stage.QF,
-            bracket_order=1,
-            match_date=datetime.date(2026, 9, 1),
-            match_time=datetime.time(18, 0),
-            status=Match.Status.SCHEDULED,
+        # Finishing the last group match auto-schedules quarter-finals.
+        qf = list(
+            Match.objects.filter(stage=Match.Stage.QF).order_by("bracket_order", "pk")
         )
-        qf2 = Match.objects.create(
-            home_team="C1",
-            away_team="D2",
-            stage=Match.Stage.QF,
-            bracket_order=2,
-            match_date=datetime.date(2026, 9, 1),
-            match_time=datetime.time(20, 0),
-            status=Match.Status.SCHEDULED,
-        )
+        self.assertEqual(len(qf), 4)
+        self.assertEqual(Match.objects.filter(stage=Match.Stage.SF).count(), 0)
+        # Placeholder SF shells must not appear in Next/Upcoming.
         Match.objects.create(
             home_team="Winner QF1",
             away_team="Winner QF2",
@@ -148,11 +145,11 @@ class MatchScheduleTests(TestCase):
         )
 
         schedule = build_match_schedule()
-        self.assertEqual(schedule["next_match"], qf1)
-        self.assertEqual(schedule["upcoming_matches"], [qf2])
+        self.assertEqual(schedule["next_match"], qf[0])
+        self.assertEqual(schedule["upcoming_matches"], qf[1:5])
         self.assertNotIn(
             "Winner QF1",
-            [m.home_team for m in schedule["upcoming_matches"]],
+            [m.home_team for m in [schedule["next_match"], *schedule["upcoming_matches"]]],
         )
 
 
@@ -495,8 +492,9 @@ class KnockoutBracketTests(TestCase):
         self.assertEqual(q["2A"], "A2")
         self.assertEqual(q["1B"], "B1")
 
-    def test_generate_knockout_creates_qf_sf_final(self):
-        # Mark group stage complete so require_group_stage_complete passes.
+    def _finish_groups(self):
+        # All groups already exist in setUp — finish them together so the
+        # auto-scheduler sees the full 4-group tournament.
         for group in self.groups:
             Match.objects.create(
                 home_team=group.teams.first().name,
@@ -508,7 +506,13 @@ class KnockoutBracketTests(TestCase):
                 home_score=1,
                 away_score=0,
             )
+
+    def test_generate_knockout_schedules_quarter_finals_only(self):
+        self._finish_groups()
         self.assertTrue(all_group_stages_complete(self.groups))
+
+        # Reset any QF auto-created by finishing the last group match.
+        reset_knockout_fixtures()
 
         result = generate_knockout_bracket(
             start_date=datetime.date(2026, 9, 1),
@@ -517,13 +521,73 @@ class KnockoutBracketTests(TestCase):
         )
         self.assertFalse(result.errors, result.errors)
         stages = {m.stage for m in result.created}
-        self.assertIn(Match.Stage.QF, stages)
-        self.assertIn(Match.Stage.SF, stages)
-        self.assertIn(Match.Stage.FINAL, stages)
-        self.assertIn(Match.Stage.THIRD, stages)
-        self.assertEqual(
-            Match.objects.filter(stage=Match.Stage.QF).count(), 4
+        self.assertEqual(stages, {Match.Stage.QF})
+        self.assertEqual(Match.objects.filter(stage=Match.Stage.QF).count(), 4)
+        self.assertEqual(Match.objects.filter(stage=Match.Stage.SF).count(), 0)
+        self.assertEqual(Match.objects.filter(stage=Match.Stage.FINAL).count(), 0)
+
+    def test_finishing_all_qf_schedules_semifinals(self):
+        self._finish_groups()
+        reset_knockout_fixtures()
+        generate_knockout_bracket(
+            start_date=datetime.date(2026, 9, 1),
+            require_group_stage_complete=True,
         )
+        qf_matches = list(
+            Match.objects.filter(stage=Match.Stage.QF).order_by("bracket_order")
+        )
+        self.assertEqual(len(qf_matches), 4)
+
+        for match in qf_matches:
+            match.status = Match.Status.FINISHED
+            match.home_score = 2
+            match.away_score = 1
+            match.save()
+
+        sf = list(
+            Match.objects.filter(stage=Match.Stage.SF).order_by("bracket_order")
+        )
+        self.assertEqual(len(sf), 2)
+        self.assertEqual(sf[0].home_team, qf_matches[0].home_team)
+        self.assertEqual(sf[0].away_team, qf_matches[1].home_team)
+        self.assertEqual(sf[0].status, Match.Status.SCHEDULED)
+        self.assertEqual(
+            sf[0].match_date,
+            datetime.date(2026, 9, 1) + datetime.timedelta(days=3),
+        )
+        # Final waits until semi-finals are finished.
+        self.assertEqual(Match.objects.filter(stage=Match.Stage.FINAL).count(), 0)
+
+    def test_finishing_all_sf_schedules_final_and_third(self):
+        self._finish_groups()
+        reset_knockout_fixtures()
+        generate_knockout_bracket(
+            start_date=datetime.date(2026, 9, 1),
+            include_third_place=True,
+            require_group_stage_complete=True,
+        )
+        for match in Match.objects.filter(stage=Match.Stage.QF):
+            match.status = Match.Status.FINISHED
+            match.home_score = 1
+            match.away_score = 0
+            match.save()
+
+        sf_matches = list(
+            Match.objects.filter(stage=Match.Stage.SF).order_by("bracket_order")
+        )
+        for match in sf_matches:
+            match.status = Match.Status.FINISHED
+            match.home_score = 3
+            match.away_score = 1
+            match.save()
+
+        final = Match.objects.get(stage=Match.Stage.FINAL, bracket_order=1)
+        third = Match.objects.get(stage=Match.Stage.THIRD, bracket_order=1)
+        self.assertEqual(final.home_team, sf_matches[0].home_team)
+        self.assertEqual(final.away_team, sf_matches[1].home_team)
+        self.assertEqual(final.status, Match.Status.SCHEDULED)
+        self.assertEqual(third.home_team, sf_matches[0].away_team)
+        self.assertEqual(third.away_team, sf_matches[1].away_team)
 
     def test_blocks_generate_until_group_stage_finished(self):
         result = generate_knockout_bracket(require_group_stage_complete=True)

@@ -310,6 +310,12 @@ class Match(models.Model):
 
         sync_standings_after_match(self)
 
+        # Progressive knockout: finishing the last group match schedules QF;
+        # finishing a full knockout round schedules the next (SF / Final).
+        from .knockout import maybe_progress_knockout
+
+        maybe_progress_knockout(self, previous_status=previous_status)
+
     def _ensure_teams_in_group(self):
         if not self.group_id:
             return

@@ -300,10 +300,21 @@ def _is_bracket_placeholder_team(name):
 def _scheduled_queue(group_stage_complete):
     """Next/Upcoming fixture queue for the public schedule."""
     if group_stage_complete:
+        from django.db.models import Case, IntegerField, When
+
+        stage_order = Case(
+            When(stage=Match.Stage.R16, then=0),
+            When(stage=Match.Stage.QF, then=1),
+            When(stage=Match.Stage.SF, then=2),
+            When(stage=Match.Stage.THIRD, then=3),
+            When(stage=Match.Stage.FINAL, then=4),
+            default=9,
+            output_field=IntegerField(),
+        )
         knockout = list(
             Match.objects.filter(status=Match.Status.SCHEDULED)
             .exclude(stage=Match.Stage.GROUP)
-            .order_by("match_date", "match_time", "bracket_order", "pk")
+            .order_by(stage_order, "match_date", "match_time", "bracket_order", "pk")
         )
         # Only real ties — skip SF/Final shells still waiting on earlier winners.
         real = [

@@ -281,9 +281,10 @@ class KnockoutBracketAdmin(admin.ModelAdmin):
             {
                 "fields": ("name", "season", "is_active", "include_third_place", "start_date"),
                 "description": (
-                    "When every group-stage match is finished, use the buttons "
-                    "below to pull the top 2 from each table and create the "
-                    "knockout fixtures automatically (World Cup rules)."
+                    "When every group-stage match is finished, Quarter-finals "
+                    "are scheduled automatically (or use Generate below). "
+                    "Semi-finals and the Final schedule themselves when the "
+                    "previous knockout round is fully finished."
                 ),
             },
         ),

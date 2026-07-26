@@ -1,5 +1,9 @@
 """World Cup–style knockout bracket generation and advancement.
 
+Progressive scheduling:
+1. When the group stage finishes → schedule the first knockout round (QF/R16).
+2. When that round is fully finished → schedule the next (SF, then Final).
+
 With 4 active groups (top 2 advance → 8 teams): Quarter-finals →
 Semi-finals → Final (+ optional third-place).
 
@@ -18,6 +22,12 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import ClubInfo, CompetitionGroup, Match
+
+DEFAULT_DAYS_BETWEEN_ROUNDS = 3
+DEFAULT_MATCH_TIME = datetime.time(18, 0)
+
+# Avoid re-entrant progress while Match.save triggers generation/advance.
+_PROGRESS_LOCK = False
 
 
 @dataclass
@@ -206,19 +216,39 @@ def _fixture_exists(stage, home, away, bracket_order=None):
     return qs.exists()
 
 
+def _default_venue():
+    club = ClubInfo.objects.first()
+    return (club.home_ground if club and club.home_ground else "") or ""
+
+
+def _hub_settings():
+    """Pull scheduling defaults from the Knockout admin hub when present."""
+    from .models import KnockoutBracket
+
+    hub = KnockoutBracket.objects.filter(is_active=True).first() or (
+        KnockoutBracket.objects.first()
+    )
+    return {
+        "hub": hub,
+        "start_date": hub.start_date if hub and hub.start_date else None,
+        "include_third_place": hub.include_third_place if hub else True,
+        "venue": _default_venue(),
+    }
+
+
 def generate_knockout_bracket(
     *,
     start_date=None,
-    days_between_rounds=3,
+    days_between_rounds=DEFAULT_DAYS_BETWEEN_ROUNDS,
     match_time=None,
     venue="",
     include_third_place=True,
     require_group_stage_complete=True,
 ):
-    """Create the first knockout round from active group standings.
+    """Schedule only the first knockout round from finished group standings.
 
-    Also creates empty placeholder shells for later rounds (Winner QF1, etc.)
-    so the bracket structure exists in admin.
+    Later rounds (SF / Final) are created when the previous round is fully
+    finished — see ``advance_knockout_winners``.
     """
     result = KnockoutResult()
     groups = [g for g in active_groups() if g.teams.count() >= 2]
@@ -255,24 +285,43 @@ def generate_knockout_bracket(
     if start_date is None:
         start_date = timezone.localdate() + datetime.timedelta(days=7)
     if match_time is None:
-        match_time = datetime.time(18, 0)
+        match_time = DEFAULT_MATCH_TIME
     if not venue:
-        club = ClubInfo.objects.first()
-        venue = (club.home_ground if club and club.home_ground else "") or ""
+        venue = _default_venue()
 
-    # --- First knockout round (real team names from standings) ---
-    first_round_matches = []
     for index, (home_code, away_code) in enumerate(pair_codes, start=1):
         home = qualifiers[home_code]
         away = qualifiers[away_code]
+        existing = Match.objects.filter(stage=first_stage, bracket_order=index).first()
+        if existing:
+            # Upgrade leftover placeholder shells to real qualifier teams.
+            changed = False
+            if _is_placeholder(existing.home_team):
+                existing.home_team = home
+                changed = True
+            if _is_placeholder(existing.away_team):
+                existing.away_team = away
+                changed = True
+            if changed:
+                if not existing.match_date:
+                    existing.match_date = start_date
+                if not existing.match_time:
+                    existing.match_time = match_time
+                if not existing.venue:
+                    existing.venue = venue
+                existing.notes = f"Knockout: {home_code} vs {away_code}"
+                existing.save()
+                result.advanced.append(
+                    f"{first_stage} #{index}: {existing.home_team} vs {existing.away_team}"
+                )
+            else:
+                result.skipped.append(f"{first_stage} #{index}: {home} vs {away}")
+            continue
+
         if _fixture_exists(first_stage, home, away, bracket_order=index):
             result.skipped.append(f"{first_stage} #{index}: {home} vs {away}")
-            existing = Match.objects.filter(
-                stage=first_stage, bracket_order=index
-            ).first()
-            if existing:
-                first_round_matches.append(existing)
             continue
+
         match = Match.objects.create(
             home_team=home,
             away_team=away,
@@ -285,84 +334,116 @@ def generate_knockout_bracket(
             notes=f"Knockout: {home_code} vs {away_code}",
         )
         result.created.append(match)
-        first_round_matches.append(match)
-
-    # --- Later rounds as Winner placeholders ---
-    round_chain = _later_rounds(first_stage, len(pair_codes), include_third_place)
-    previous_count = len(pair_codes)
-    previous_label = first_stage
-    round_date = start_date
-
-    for stage, count, use_winners_of in round_chain:
-        round_date = round_date + datetime.timedelta(days=days_between_rounds)
-        for index in range(1, count + 1):
-            if stage == Match.Stage.THIRD:
-                home = f"Loser {use_winners_of}1"
-                away = f"Loser {use_winners_of}2"
-            elif use_winners_of:
-                home = f"Winner {use_winners_of}{index * 2 - 1}"
-                away = f"Winner {use_winners_of}{index * 2}"
-            else:
-                home = f"Winner {previous_label}{index * 2 - 1}"
-                away = f"Winner {previous_label}{index * 2}"
-
-            if Match.objects.filter(stage=stage, bracket_order=index).exists():
-                result.skipped.append(f"{stage} #{index}")
-                continue
-
-            match = Match.objects.create(
-                home_team=home,
-                away_team=away,
-                stage=stage,
-                bracket_order=index,
-                match_date=round_date,
-                match_time=match_time,
-                venue=venue,
-                status=Match.Status.SCHEDULED,
-                notes=f"Knockout placeholder — run 'Advance knockout winners' after prior round.",
-            )
-            result.created.append(match)
-
-        previous_count = count
-        previous_label = stage
 
     return result
 
 
-def _later_rounds(first_stage, first_count, include_third_place):
-    """Return [(stage, match_count, winners_label), ...] after the first round."""
-    chain = []
-    stage = first_stage
-    count = first_count
-
-    order = [
-        Match.Stage.R16,
-        Match.Stage.QF,
-        Match.Stage.SF,
-        Match.Stage.FINAL,
-    ]
-    try:
-        start_idx = order.index(stage)
-    except ValueError:
-        start_idx = 0
-
-    prev = stage
-    for next_stage in order[start_idx + 1 :]:
-        if next_stage == Match.Stage.FINAL:
-            chain.append((Match.Stage.FINAL, 1, prev))
-            if include_third_place and prev == Match.Stage.SF:
-                chain.append((Match.Stage.THIRD, 1, prev))
-            break
-        next_count = max(1, count // 2)
-        chain.append((next_stage, next_count, prev))
-        prev = next_stage
-        count = next_count
-    return chain
+def _round_matches(stage):
+    return list(Match.objects.filter(stage=stage).order_by("bracket_order", "pk"))
 
 
-def advance_knockout_winners():
-    """Fill next-round placeholders from finished knockout results."""
+def _round_fully_decided(matches):
+    return bool(matches) and all(
+        m.status == Match.Status.FINISHED and m.winner for m in matches
+    )
+
+
+def _loser_of(match):
+    if not match.winner:
+        return None
+    if match.winner == match.home_team:
+        return match.away_team
+    if match.winner == match.away_team:
+        return match.home_team
+    return None
+
+
+def _schedule_or_fill_tie(
+    *,
+    stage,
+    bracket_order,
+    home,
+    away,
+    match_date,
+    match_time,
+    venue,
+    notes,
+    result,
+):
+    """Create a scheduled knockout tie, or fill an existing placeholder."""
+    existing = Match.objects.filter(stage=stage, bracket_order=bracket_order).first()
+    if existing:
+        if existing.status == Match.Status.FINISHED:
+            result.skipped.append(f"{stage} #{bracket_order} already finished")
+            return existing
+
+        changed = False
+        if _is_placeholder(existing.home_team) or existing.home_team != home:
+            existing.home_team = home
+            changed = True
+        if _is_placeholder(existing.away_team) or existing.away_team != away:
+            existing.away_team = away
+            changed = True
+        if existing.match_date != match_date:
+            existing.match_date = match_date
+            changed = True
+        if match_time and existing.match_time != match_time:
+            existing.match_time = match_time
+            changed = True
+        if venue and not existing.venue:
+            existing.venue = venue
+            changed = True
+        if existing.status != Match.Status.SCHEDULED:
+            existing.status = Match.Status.SCHEDULED
+            changed = True
+        if changed:
+            if notes:
+                existing.notes = notes
+            existing.save()
+            result.advanced.append(
+                f"{stage} #{bracket_order}: {existing.home_team} vs {existing.away_team}"
+            )
+        else:
+            result.skipped.append(f"{stage} #{bracket_order} already set")
+        return existing
+
+    match = Match.objects.create(
+        home_team=home,
+        away_team=away,
+        stage=stage,
+        bracket_order=bracket_order,
+        match_date=match_date,
+        match_time=match_time,
+        venue=venue,
+        status=Match.Status.SCHEDULED,
+        notes=notes,
+    )
+    result.created.append(match)
+    result.advanced.append(f"{stage} #{bracket_order}: {home} vs {away}")
+    return match
+
+
+def advance_knockout_winners(
+    *,
+    days_between_rounds=DEFAULT_DAYS_BETWEEN_ROUNDS,
+    match_time=None,
+    venue="",
+    include_third_place=None,
+):
+    """When a knockout round is fully finished, schedule the next round.
+
+    Example: all Quarter-finals Finished with winners → create/fill Semi-finals
+    with real teams and a new match date. Same for SF → Final (+ 3rd place).
+    """
     result = KnockoutResult()
+    settings = _hub_settings()
+    if match_time is None:
+        match_time = DEFAULT_MATCH_TIME
+    if not venue:
+        venue = settings["venue"]
+    if include_third_place is None:
+        include_third_place = settings["include_third_place"]
+
     stage_flow = [
         (Match.Stage.R16, Match.Stage.QF),
         (Match.Stage.QF, Match.Stage.SF),
@@ -370,77 +451,114 @@ def advance_knockout_winners():
     ]
 
     for from_stage, to_stage in stage_flow:
-        finished = list(
-            Match.objects.filter(
-                stage=from_stage, status=Match.Status.FINISHED
-            ).order_by("bracket_order")
-        )
-        if not finished:
+        prior = _round_matches(from_stage)
+        if not _round_fully_decided(prior):
             continue
 
-        next_matches = list(
-            Match.objects.filter(stage=to_stage).order_by("bracket_order")
+        winners = [m.winner for m in prior]
+        if len(winners) < 2:
+            continue
+
+        next_date = max(m.match_date for m in prior) + datetime.timedelta(
+            days=days_between_rounds
         )
-        for next_match in next_matches:
-            # Map QF1+QF2 → SF1, QF3+QF4 → SF2, etc.
-            left_order = next_match.bracket_order * 2 - 1
-            right_order = next_match.bracket_order * 2
-            left = next((m for m in finished if m.bracket_order == left_order), None)
-            right = next((m for m in finished if m.bracket_order == right_order), None)
-            if not left or not right:
-                continue
-            left_winner = left.winner
-            right_winner = right.winner
-            if not left_winner or not right_winner:
-                result.errors.append(
-                    f"Cannot advance to {to_stage} #{next_match.bracket_order}: "
-                    "a prior match is drawn or unfinished (set a winner)."
+        next_count = len(winners) // 2
+
+        for index in range(1, next_count + 1):
+            home = winners[index * 2 - 2]
+            away = winners[index * 2 - 1]
+            _schedule_or_fill_tie(
+                stage=to_stage,
+                bracket_order=index,
+                home=home,
+                away=away,
+                match_date=next_date,
+                match_time=match_time,
+                venue=venue,
+                notes=f"Auto-scheduled from {from_stage} winners",
+                result=result,
+            )
+
+        if from_stage == Match.Stage.SF and include_third_place:
+            losers = [_loser_of(m) for m in prior[:2]]
+            if all(losers):
+                _schedule_or_fill_tie(
+                    stage=Match.Stage.THIRD,
+                    bracket_order=1,
+                    home=losers[0],
+                    away=losers[1],
+                    match_date=next_date,
+                    match_time=match_time,
+                    venue=venue,
+                    notes="Auto-scheduled 3rd-place play-off from SF losers",
+                    result=result,
                 )
-                continue
 
-            changed = False
-            # Only overwrite placeholder slots so manual edits are kept.
-            if _is_placeholder(next_match.home_team):
-                next_match.home_team = left_winner
-                changed = True
-            if _is_placeholder(next_match.away_team):
-                next_match.away_team = right_winner
-                changed = True
-
-            if changed:
-                next_match.save()
-                result.advanced.append(
-                    f"{to_stage} #{next_match.bracket_order}: "
-                    f"{next_match.home_team} vs {next_match.away_team}"
-                )
-
-        # Third place from SF losers
-        if from_stage == Match.Stage.SF:
-            third = Match.objects.filter(
-                stage=Match.Stage.THIRD, bracket_order=1
-            ).first()
-            if third and len(finished) >= 2:
-                losers = []
-                for m in finished[:2]:
-                    if m.winner == m.home_team:
-                        losers.append(m.away_team)
-                    elif m.winner == m.away_team:
-                        losers.append(m.home_team)
-                if len(losers) == 2 and (
-                    _is_placeholder(third.home_team)
-                    or third.home_team.startswith("Loser ")
-                ):
-                    third.home_team = losers[0]
-                    third.away_team = losers[1]
-                    third.save()
-                    result.advanced.append(
-                        f"THIRD: {third.home_team} vs {third.away_team}"
-                    )
-
-    if not result.advanced and not result.errors:
+    if not result.advanced and not result.created and not result.errors:
         result.errors.append(
-            "Nothing to advance — finish knockout matches first, or generate the bracket."
+            "Nothing to advance — finish every match in the current knockout "
+            "round first (all QF before SF, all SF before Final)."
         )
+    return result
+
+
+def maybe_progress_knockout(match, previous_status=None):
+    """Auto-schedule QF after groups, then SF/Final after each round ends.
+
+    Called from Match.save when a fixture becomes Finished.
+    """
+    global _PROGRESS_LOCK
+    if _PROGRESS_LOCK:
+        return None
+    if match.status != Match.Status.FINISHED:
+        return None
+    if previous_status == Match.Status.FINISHED:
+        return None
+
+    result = KnockoutResult()
+    _PROGRESS_LOCK = True
+    try:
+        if match.stage == Match.Stage.GROUP and all_group_stages_complete():
+            settings = _hub_settings()
+            planned_stage, _pairings = planned_first_round_pairings()
+            if planned_stage:
+                knockout_qs = Match.objects.exclude(stage=Match.Stage.GROUP)
+                has_opening = Match.objects.filter(stage=planned_stage).exists()
+                # If an older/smaller bracket was built (e.g. SF while we now
+                # need QF), clear it so the correct first round can schedule.
+                if knockout_qs.exists() and not has_opening:
+                    reset_knockout_fixtures()
+
+            generated = generate_knockout_bracket(
+                start_date=settings["start_date"],
+                include_third_place=settings["include_third_place"],
+                venue=settings["venue"],
+                require_group_stage_complete=True,
+            )
+            result.created.extend(generated.created)
+            result.advanced.extend(generated.advanced)
+            result.errors.extend(generated.errors)
+            hub = settings["hub"]
+            if hub and (generated.created or generated.advanced):
+                hub.generated_at = timezone.now()
+                hub.save(update_fields=["generated_at"])
+
+        if match.stage != Match.Stage.GROUP:
+            settings = _hub_settings()
+            advanced = advance_knockout_winners(
+                include_third_place=settings["include_third_place"],
+                venue=settings["venue"],
+            )
+            result.created.extend(advanced.created)
+            result.advanced.extend(advanced.advanced)
+            # Ignore the benign "nothing to advance" notice during auto-progress.
+            for error in advanced.errors:
+                if error.startswith("Nothing to advance"):
+                    continue
+                result.errors.append(error)
+    finally:
+        _PROGRESS_LOCK = False
+
     return result
 
 
