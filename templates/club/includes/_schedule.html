@@ -1,3 +1,4 @@
+{% if schedule_ready %}
 <section class="section section-alt" id="schedule">
     <div class="container">
         <p class="eyebrow">Fixtures</p>
@@ -308,8 +309,25 @@
             </div>
             {% endif %}
 
-            {% if not live_matches and not next_match and not upcoming_matches and not knockout_bracket.columns %}
-            <p class="empty-state">No fixtures scheduled yet. Add matches from the Django admin.</p>
+            {% if not live_matches and not next_match and not upcoming_matches and not past_matches %}
+            {% if not knockout_bracket.group_stage_complete or not knockout_bracket.columns %}
+            <div class="schedule-coming-soon" role="status">
+                <div class="schedule-coming-soon-glow" aria-hidden="true"></div>
+                <p class="schedule-coming-soon-kicker">Fixtures</p>
+                <h3 class="schedule-coming-soon-title">Coming <span class="text-accent">Soon</span></h3>
+                <p class="schedule-coming-soon-copy">
+                    {% if competition_groups %}
+                    Groups are set — match days will appear here once fixtures are drawn.
+                    {% else %}
+                    The Darwin Cup schedule will land here when teams are placed into groups.
+                    {% endif %}
+                </p>
+                <div class="schedule-coming-soon-meta">
+                    <span>Live · Next · Upcoming</span>
+                    <span>Group tables · Knockout path</span>
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
 
             {% if past_matches %}
@@ -321,13 +339,16 @@
             </div>
             {% endif %}
 
+            {% if live_matches or next_match or upcoming_matches or past_matches or knockout_bracket.columns %}
             <p class="schedule-note">
                 {% if knockout_bracket.group_stage_complete %}
-                &#9888; Next / Upcoming show the current knockout round. Finish all ties in that round to unlock the next.
+                Next / Upcoming show the current knockout round. Finish all ties in that round to unlock the next.
                 {% else %}
-                &#9888; Next 5 group fixtures shown. Knockout stays hidden until every group-stage match is marked Finished.
+                Showing the next group fixtures. Knockout unlocks when every group-stage match is finished.
                 {% endif %}
             </p>
+            {% endif %}
         </div>
     </div>
 </section>
+{% endif %}

@@ -27,12 +27,22 @@ from club.models import (
     Match,
     TeamRegistration,
 )
+from club.context_processors import schedule_nav
 from club.schedule import (
     FINISHED_VISIBLE_MINUTES,
     build_knockout_bracket_display,
     build_match_schedule,
 )
 from club.standings import recalculate_group_standings
+
+
+class ScheduleReadyTests(TestCase):
+    def test_schedule_hidden_until_groups_have_teams(self):
+        self.assertFalse(schedule_nav(None)["schedule_ready"])
+        group = CompetitionGroup.objects.create(name="Group A", is_active=True)
+        self.assertFalse(schedule_nav(None)["schedule_ready"])
+        GroupTeam.objects.create(group=group, name="Chillax 1")
+        self.assertTrue(schedule_nav(None)["schedule_ready"])
 
 
 class MatchScheduleTests(TestCase):

@@ -10,7 +10,11 @@
         <p class="hero-tagline">{{ club.tagline|default:"Himalayan Hearts &bull; Top End Spirits" }}</p>
         <div class="hero-actions">
             <a class="btn btn-primary" href="#players">Meet the Squad</a>
+            {% if schedule_ready %}
             <a class="btn btn-ghost" href="#schedule">View Schedule</a>
+            {% else %}
+            <a class="btn btn-ghost" href="#register">Register a Team</a>
+            {% endif %}
         </div>
     </div>
 </section>

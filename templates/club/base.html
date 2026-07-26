@@ -44,8 +44,10 @@
                     <a href="{% url 'club:home' %}#home">Home</a>
                     <a href="{% url 'club:home' %}#about">About</a>
                     <a href="{% url 'club:home' %}#players">Players</a>
+                    {% if schedule_ready %}
                     <a href="{% url 'club:home' %}#schedule">Schedule</a>
                     <a href="{% url 'club:home' %}#table">Table</a>
+                    {% endif %}
                     <a href="{% url 'club:home' %}#register">Register</a>
                     <a href="{% url 'club:home' %}#photos">Photos</a>
                     <a href="{% url 'club:home' %}#contact">Contact</a>
