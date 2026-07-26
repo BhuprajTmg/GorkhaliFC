@@ -1,0 +1,34 @@
+"""
+Copy the body of this file into your PythonAnywhere Web → WSGI configuration
+file (replace the entire default contents).
+
+Change YOUR_USERNAME below to your PythonAnywhere username.
+"""
+
+import os
+import sys
+
+# --- edit this ---
+USERNAME = "YOUR_USERNAME"
+PROJECT_DIR = f"/home/{USERNAME}/GorkhaliFC"
+# -----------------
+
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "gurkhali_fc.settings")
+
+# Production defaults (override in Web → Environment variables if you prefer).
+os.environ.setdefault("DJANGO_DEBUG", "False")
+os.environ.setdefault(
+    "DJANGO_ALLOWED_HOSTS",
+    f"{USERNAME}.pythonanywhere.com,www.{USERNAME}.pythonanywhere.com",
+)
+os.environ.setdefault(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    f"https://{USERNAME}.pythonanywhere.com,https://www.{USERNAME}.pythonanywhere.com",
+)
+
+from django.core.wsgi import get_wsgi_application  # noqa: E402
+
+application = get_wsgi_application()

@@ -115,6 +115,17 @@ media/                  User-uploaded images (players, gallery, logo) - gitignor
    `http://127.0.0.1:8000/admin/` to manage content (players, fixtures,
    gallery photos, club info).
 
+## Deploy for $0 (PythonAnywhere)
+
+Step-by-step free hosting (always-on web app, SQLite + media kept on disk):
+see **[DEPLOY.md](DEPLOY.md)**.
+
+Short version: free [PythonAnywhere](https://www.pythonanywhere.com/) account →
+clone this repo → Python 3.12 venv → `.env` with `DJANGO_DEBUG=False` →
+`migrate` / `collectstatic` / `createsuperuser` → Web tab WSGI from
+`pythonanywhere_wsgi.py.example` → map `/static/` and `/media/` → Reload.
+Extend the free web app when they email you (~monthly) so it stays online.
+
 ## Email setup (contact form + registrations)
 
 Submitting Contact / Register always saves to the database. With SMTP
