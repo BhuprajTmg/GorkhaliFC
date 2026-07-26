@@ -49,12 +49,26 @@ PLACEHOLDER_COUNTS = {
 
 
 def _slot_from_match(match):
+    home_wins = (
+        match.status == Match.Status.FINISHED
+        and match.home_score is not None
+        and match.away_score is not None
+        and match.home_score > match.away_score
+    )
+    away_wins = (
+        match.status == Match.Status.FINISHED
+        and match.home_score is not None
+        and match.away_score is not None
+        and match.away_score > match.home_score
+    )
     return {
         "match": match,
         "home": match.home_team,
         "away": match.away_team,
         "home_score": match.home_score,
         "away_score": match.away_score,
+        "home_wins": home_wins,
+        "away_wins": away_wins,
         "status": match.status,
         "is_live": match.is_live,
         "is_finished": match.status == Match.Status.FINISHED,
@@ -62,17 +76,21 @@ def _slot_from_match(match):
         "match_date": match.match_date,
         "match_time": match.match_time,
         "venue": match.venue,
+        "notes": match.notes,
         "stage_badge": match.stage_badge,
+        "stage_label": match.get_stage_display(),
     }
 
 
-def _placeholder_slot(home="TBD", away="TBD", badge=""):
+def _placeholder_slot(home="TBD", away="TBD", badge="", stage_label=""):
     return {
         "match": None,
         "home": home,
         "away": away,
         "home_score": None,
         "away_score": None,
+        "home_wins": False,
+        "away_wins": False,
         "status": Match.Status.SCHEDULED,
         "is_live": False,
         "is_finished": False,
@@ -80,7 +98,9 @@ def _placeholder_slot(home="TBD", away="TBD", badge=""):
         "match_date": None,
         "match_time": None,
         "venue": "",
+        "notes": "",
         "stage_badge": badge,
+        "stage_label": stage_label or badge,
     }
 
 
@@ -91,14 +111,16 @@ def _slots_for_stage(stage, matches_by_stage, planned_pairings=None):
     if matches:
         return [_slot_from_match(m) for m in matches]
 
+    stage_label = dict(Match.Stage.choices).get(stage, badge)
+
     # First knockout round can preview from current group-table standings.
     if planned_pairings and stage in (Match.Stage.R16, Match.Stage.QF, Match.Stage.SF):
-        # Only seed the opening round that matches the planned stage.
         return [
             _placeholder_slot(
                 home=pair["home"],
                 away=pair["away"],
                 badge=badge,
+                stage_label=stage_label,
             )
             for pair in planned_pairings
         ]
@@ -109,19 +131,38 @@ def _slots_for_stage(stage, matches_by_stage, planned_pairings=None):
             ("Winner QF 1", "Winner QF 2"),
             ("Winner QF 3", "Winner QF 4"),
         ][:count]
-        return [_placeholder_slot(h, a, badge) for h, a in labels]
+        return [
+            _placeholder_slot(h, a, badge, stage_label=stage_label) for h, a in labels
+        ]
     if stage == Match.Stage.FINAL:
-        return [_placeholder_slot("Winner SF 1", "Winner SF 2", badge)]
+        return [
+            _placeholder_slot(
+                "Winner SF 1", "Winner SF 2", badge, stage_label=stage_label
+            )
+        ]
     if stage == Match.Stage.THIRD:
-        return [_placeholder_slot("Loser SF 1", "Loser SF 2", badge)]
+        return [
+            _placeholder_slot(
+                "Loser SF 1", "Loser SF 2", badge, stage_label=stage_label
+            )
+        ]
     if stage == Match.Stage.R16:
         return [
-            _placeholder_slot(f"1{chr(65 + i)}", f"2{chr(65 + i)}", badge)
+            _placeholder_slot(
+                f"1{chr(65 + i)}",
+                f"2{chr(65 + i)}",
+                badge,
+                stage_label=stage_label,
+            )
             for i in range(count)
         ]
-    # Default QF placeholders when pairings aren't available yet.
     return [
-        _placeholder_slot(f"Qualifier {i * 2 + 1}", f"Qualifier {i * 2 + 2}", badge)
+        _placeholder_slot(
+            f"Qualifier {i * 2 + 1}",
+            f"Qualifier {i * 2 + 2}",
+            badge,
+            stage_label=stage_label,
+        )
         for i in range(count)
     ]
 
@@ -191,12 +232,18 @@ def build_knockout_bracket_display():
             # Later rounds without fixtures: elegant TBD placeholders.
             slots = _slots_for_stage(stage, {}, planned_pairings=None)
 
+        live_count = sum(1 for s in slots if s.get("is_live"))
+        done_count = sum(1 for s in slots if s.get("is_finished"))
         columns.append(
             {
                 "stage": stage,
                 "label": dict(Match.Stage.choices).get(stage, stage),
                 "short": BRACKET_SHORT.get(stage, stage),
+                "panel_id": f"knockout-panel-{stage.lower()}",
                 "slots": slots,
+                "match_count": len(slots),
+                "live_count": live_count,
+                "done_count": done_count,
                 "is_final": stage == Match.Stage.FINAL,
             }
         )

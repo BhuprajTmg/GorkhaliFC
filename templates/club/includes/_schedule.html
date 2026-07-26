@@ -7,7 +7,7 @@
         <div class="section-body">
             <div class="knockout-stage" id="table">
                 <div class="knockout-stage-layout">
-                    <div class="knockout-bracket-panel">
+                    <div class="knockout-rounds-block">
                         <div class="knockout-bracket-intro">
                             <div>
                                 <p class="group-standings-kicker">Tournament path</p>
@@ -16,44 +16,49 @@
                                 </h3>
                             </div>
                             <p class="knockout-bracket-hint">
-                                {% if knockout_bracket.has_fixtures %}
-                                    Quarter-finals through to the Final — updated as matches finish.
-                                {% elif knockout_bracket.group_stage_complete %}
-                                    Group stage complete — bracket fixtures unlock from the Knockout admin.
-                                {% else %}
-                                    Preview from current tables. Group standings stay one tap away.
-                                {% endif %}
+                                Hover a round to lift it — click to open the full ties, just like the group tables.
                             </p>
                         </div>
 
                         {% if knockout_bracket.columns %}
                         <div
-                            class="knockout-bracket"
+                            class="knockout-round-grid"
+                            id="knockout-round-grid"
                             data-columns="{{ knockout_bracket.columns|length }}"
-                            aria-label="Knockout bracket"
                         >
                             {% for column in knockout_bracket.columns %}
-                            <div
-                                class="bracket-column{% if column.is_final %} bracket-column--final{% endif %}"
-                                style="--bracket-i: {{ forloop.counter0 }}"
+                            <button
+                                type="button"
+                                class="knockout-round-card{% if column.is_final %} knockout-round-card--final{% endif %}"
+                                data-knockout-target="{{ column.panel_id }}"
+                                aria-haspopup="dialog"
+                                aria-controls="knockout-round-overlay"
+                                style="--round-i: {{ forloop.counter0 }}"
                             >
-                                <h4 class="bracket-column-label">
-                                    <span>{{ column.short }}</span>
-                                    {{ column.label }}
-                                </h4>
-                                <div class="bracket-column-matches">
-                                    {% for slot in column.slots %}
-                                        {% include "club/includes/_knockout_slot.html" with slot=slot %}
-                                    {% endfor %}
+                                <div class="knockout-round-card-inner">
+                                    <div class="knockout-round-card-banner">
+                                        <span class="knockout-round-card-short">{{ column.short }}</span>
+                                        <span class="knockout-round-card-name">{{ column.label }}</span>
+                                        <span class="knockout-round-card-meta">
+                                            {{ column.match_count }} tie{{ column.match_count|pluralize }}
+                                            {% if column.live_count %} · {{ column.live_count }} live{% endif %}
+                                            {% if column.done_count %} · {{ column.done_count }} done{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="knockout-round-card-ties">
+                                        {% for slot in column.slots %}
+                                            {% include "club/includes/_knockout_slot.html" with slot=slot variant="compact" %}
+                                        {% endfor %}
+                                        {% if column.is_final and knockout_bracket.third %}
+                                        <div class="knockout-round-card-third">
+                                            <span class="knockout-round-card-third-label">3rd place</span>
+                                            {% include "club/includes/_knockout_slot.html" with slot=knockout_bracket.third variant="compact" %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <span class="knockout-round-card-cta">View full round</span>
                                 </div>
-
-                                {% if column.is_final and knockout_bracket.third %}
-                                <div class="bracket-third">
-                                    <p class="bracket-third-label">Third place</p>
-                                    {% include "club/includes/_knockout_slot.html" with slot=knockout_bracket.third %}
-                                </div>
-                                {% endif %}
-                            </div>
+                            </button>
                             {% endfor %}
                         </div>
                         {% else %}
@@ -83,6 +88,85 @@
                     {% endif %}
                 </div>
             </div>
+
+            {% if knockout_bracket.columns %}
+            <div
+                id="knockout-round-overlay"
+                class="knockout-round-overlay"
+                style="display: none;"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Knockout round"
+                hidden
+            >
+                <div class="knockout-round-overlay-panel">
+                    <button
+                        type="button"
+                        class="group-overlay-close"
+                        id="knockout-overlay-close"
+                        aria-label="Close knockout round"
+                    >
+                        &times;
+                    </button>
+
+                    <div class="knockout-drawer-header">
+                        <div>
+                            <p class="group-standings-kicker">Knockout path</p>
+                            <h3 class="group-standings-name">Bracket rounds</h3>
+                        </div>
+                        <p class="knockout-drawer-legend">Click a round tab to switch</p>
+                    </div>
+
+                    <div class="knockout-drawer-tabs" role="tablist" aria-label="Select knockout round">
+                        {% for column in knockout_bracket.columns %}
+                        <button
+                            type="button"
+                            class="knockout-drawer-tab{% if forloop.first %} is-active{% endif %}"
+                            role="tab"
+                            id="knockout-tab-{{ column.stage|lower }}"
+                            aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                            aria-controls="{{ column.panel_id }}"
+                            data-knockout-tab="{{ column.panel_id }}"
+                        >
+                            {{ column.short }}
+                        </button>
+                        {% endfor %}
+                    </div>
+
+                    {% for column in knockout_bracket.columns %}
+                    <div
+                        class="knockout-expanded-panel"
+                        id="{{ column.panel_id }}"
+                        role="tabpanel"
+                        aria-labelledby="knockout-tab-{{ column.stage|lower }}"
+                        data-knockout-panel
+                        {% if not forloop.first %}hidden{% endif %}
+                    >
+                        <div class="knockout-expanded-banner">
+                            <div>
+                                <p class="group-standings-kicker">{{ column.short }}</p>
+                                <h3 class="group-standings-name">{{ column.label }}</h3>
+                            </div>
+                            <p class="knockout-expanded-count">
+                                {{ column.match_count }} match{{ column.match_count|pluralize }}
+                            </p>
+                        </div>
+                        <div class="knockout-expanded-ties">
+                            {% for slot in column.slots %}
+                                {% include "club/includes/_knockout_slot.html" with slot=slot variant="expanded" %}
+                            {% endfor %}
+                            {% if column.is_final and knockout_bracket.third %}
+                            <div class="knockout-expanded-third">
+                                <p class="bracket-third-label">Third-place play-off</p>
+                                {% include "club/includes/_knockout_slot.html" with slot=knockout_bracket.third variant="expanded" %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             {% if competition_groups %}
             <div
@@ -192,7 +276,7 @@
             </div>
             {% endif %}
 
-            <p class="schedule-note">&#9888; Next 5 group fixtures shown. The knockout bracket fills the main stage — open Group Tables from the side to check standings.</p>
+            <p class="schedule-note">&#9888; Next 5 group fixtures shown. Click a knockout round card to expand it — use Tables for group standings.</p>
         </div>
     </div>
 </section>

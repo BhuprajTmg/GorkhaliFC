@@ -1,40 +1,61 @@
+{% if variant == "expanded" %}
 <article
-    class="bracket-match{% if slot.is_live %} bracket-match--live{% elif slot.is_finished %} bracket-match--done{% endif %}{% if slot.is_placeholder %} bracket-match--tbd{% endif %}"
+    class="bracket-tie bracket-tie--expanded{% if slot.is_live %} bracket-tie--live{% elif slot.is_finished %} bracket-tie--done{% endif %}{% if slot.is_placeholder %} bracket-tie--tbd{% endif %}"
 >
-    <div class="bracket-match-teams">
-        <div class="bracket-team{% if slot.is_finished and slot.home_score is not None and slot.away_score is not None and slot.home_score > slot.away_score %} bracket-team--winner{% endif %}">
-            <span class="bracket-team-name">{{ slot.home }}</span>
-            <span class="bracket-team-score">
-                {% if slot.is_live or slot.is_finished %}
-                    {{ slot.home_score|default_if_none:"0" }}
-                {% else %}
-                    —
-                {% endif %}
-            </span>
-        </div>
-        <div class="bracket-team{% if slot.is_finished and slot.home_score is not None and slot.away_score is not None and slot.away_score > slot.home_score %} bracket-team--winner{% endif %}">
-            <span class="bracket-team-name">{{ slot.away }}</span>
-            <span class="bracket-team-score">
-                {% if slot.is_live or slot.is_finished %}
-                    {{ slot.away_score|default_if_none:"0" }}
-                {% else %}
-                    —
-                {% endif %}
-            </span>
-        </div>
-    </div>
-    <div class="bracket-match-meta">
+    <div class="bracket-tie-banner">
+        <span class="bracket-tie-round">{{ slot.stage_label|default:slot.stage_badge }}</span>
         {% if slot.is_live %}
         <span class="bracket-pill bracket-pill--live"><span class="live-dot"></span>Live</span>
         {% elif slot.is_finished %}
-        <span class="bracket-pill bracket-pill--done">FT</span>
-        {% elif slot.stage_badge %}
-        <span class="bracket-pill">{{ slot.stage_badge }}</span>
-        {% endif %}
-        {% if slot.match_date %}
-        <span class="bracket-meta-text">{{ slot.match_date|date:"d M" }}{% if slot.match_time %} · {{ slot.match_time|time:"g:i A" }}{% endif %}</span>
+        <span class="bracket-pill bracket-pill--done">Full time</span>
         {% elif slot.is_placeholder %}
-        <span class="bracket-meta-text">Awaiting fixture</span>
+        <span class="bracket-pill">Preview</span>
+        {% else %}
+        <span class="bracket-pill">Scheduled</span>
         {% endif %}
     </div>
+
+    <div class="bracket-tie-scoreboard">
+        <div class="bracket-tie-side{% if slot.home_wins %} bracket-tie-side--winner{% endif %}">
+            <span class="bracket-tie-club">{{ slot.home }}</span>
+            <span class="bracket-tie-goals">
+                {% if slot.is_live or slot.is_finished %}{{ slot.home_score|default_if_none:"0" }}{% else %}—{% endif %}
+            </span>
+        </div>
+        <div class="bracket-tie-vs" aria-hidden="true">vs</div>
+        <div class="bracket-tie-side{% if slot.away_wins %} bracket-tie-side--winner{% endif %}">
+            <span class="bracket-tie-club">{{ slot.away }}</span>
+            <span class="bracket-tie-goals">
+                {% if slot.is_live or slot.is_finished %}{{ slot.away_score|default_if_none:"0" }}{% else %}—{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="bracket-tie-footer">
+        {% if slot.match_date %}
+        <span>{{ slot.match_date|date:"D, d M Y" }}{% if slot.match_time %} · {{ slot.match_time|time:"g:i A" }}{% endif %}</span>
+        {% else %}
+        <span>Fixture date TBA</span>
+        {% endif %}
+        {% if slot.venue %}<span>{{ slot.venue }}</span>{% endif %}
+        {% if slot.notes %}<span>{{ slot.notes }}</span>{% endif %}
+    </div>
 </article>
+{% else %}
+<div
+    class="bracket-tie bracket-tie--compact{% if slot.is_live %} bracket-tie--live{% elif slot.is_finished %} bracket-tie--done{% endif %}{% if slot.is_placeholder %} bracket-tie--tbd{% endif %}"
+>
+    <div class="bracket-tie-row{% if slot.home_wins %} bracket-tie-row--winner{% endif %}">
+        <span class="bracket-tie-club">{{ slot.home }}</span>
+        <span class="bracket-tie-goals">
+            {% if slot.is_live or slot.is_finished %}{{ slot.home_score|default_if_none:"0" }}{% else %}—{% endif %}
+        </span>
+    </div>
+    <div class="bracket-tie-row{% if slot.away_wins %} bracket-tie-row--winner{% endif %}">
+        <span class="bracket-tie-club">{{ slot.away }}</span>
+        <span class="bracket-tie-goals">
+            {% if slot.is_live or slot.is_finished %}{{ slot.away_score|default_if_none:"0" }}{% else %}—{% endif %}
+        </span>
+    </div>
+</div>
+{% endif %}

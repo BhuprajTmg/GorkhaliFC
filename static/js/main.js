@@ -86,16 +86,52 @@ document.addEventListener("DOMContentLoaded", function () {
     openRegisterBtn.addEventListener("click", registerModal.open);
   }
 
+  // Shared fade-open / fade-close helper for schedule overlays.
+  function wireFadeOverlay(overlay, options) {
+    if (!overlay) return null;
+    const bodyClass = options.bodyClass || "";
+    const closeBtn = options.closeBtn || null;
+    const onOpen = options.onOpen || null;
+    let closeTimer = null;
+
+    function close() {
+      if (!overlay.classList.contains("is-open")) return;
+      overlay.classList.add("is-closing");
+      if (bodyClass) document.body.classList.remove(bodyClass);
+      window.clearTimeout(closeTimer);
+      closeTimer = window.setTimeout(function () {
+        overlay.classList.remove("is-open", "is-closing");
+        overlay.style.display = "none";
+        overlay.hidden = true;
+      }, 320);
+    }
+
+    function open() {
+      window.clearTimeout(closeTimer);
+      if (typeof onOpen === "function") onOpen();
+      overlay.hidden = false;
+      overlay.style.display = "flex";
+      overlay.classList.remove("is-closing", "is-open");
+      void overlay.offsetWidth;
+      overlay.classList.add("is-open");
+      if (bodyClass) document.body.classList.add(bodyClass);
+    }
+
+    if (closeBtn) closeBtn.addEventListener("click", close);
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) close();
+    });
+
+    return { open: open, close: close, el: overlay };
+  }
+
   // Group standings drawer: side "Tables" button opens tabbed overlay.
   const groupOverlay = document.getElementById("group-table-overlay");
   const openGroupTablesBtn = document.getElementById("open-group-tables");
-  const groupCloseBtn = document.getElementById("group-overlay-close");
   const groupTabs = document.querySelectorAll("[data-group-tab]");
-  let groupOverlayCloseTimer = null;
 
   function setActiveGroupTab(panelId) {
-    const panels = document.querySelectorAll("[data-group-panel]");
-    panels.forEach(function (panel) {
+    document.querySelectorAll("[data-group-panel]").forEach(function (panel) {
       panel.hidden = panel.id !== panelId;
     });
     groupTabs.forEach(function (tab) {
@@ -105,38 +141,19 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  function closeGroupOverlay() {
-    if (!groupOverlay || !groupOverlay.classList.contains("is-open")) return;
-    groupOverlay.classList.add("is-closing");
-    document.body.classList.remove("group-overlay-open");
-    window.clearTimeout(groupOverlayCloseTimer);
-    groupOverlayCloseTimer = window.setTimeout(function () {
-      groupOverlay.classList.remove("is-open", "is-closing");
-      groupOverlay.style.display = "none";
-      groupOverlay.hidden = true;
-    }, 320);
-  }
+  const groupModal = wireFadeOverlay(groupOverlay, {
+    bodyClass: "group-overlay-open",
+    closeBtn: document.getElementById("group-overlay-close"),
+    onOpen: function () {
+      const firstPanel = document.querySelector("[data-group-panel]");
+      if (firstPanel) setActiveGroupTab(firstPanel.id);
+    },
+  });
 
-  function openGroupOverlay(panelId) {
-    if (!groupOverlay) return;
-    const firstPanel = document.querySelector("[data-group-panel]");
-    const targetId = panelId || (firstPanel && firstPanel.id);
-    if (!targetId) return;
-
-    window.clearTimeout(groupOverlayCloseTimer);
-    setActiveGroupTab(targetId);
-
-    groupOverlay.hidden = false;
-    groupOverlay.style.display = "flex";
-    groupOverlay.classList.remove("is-closing", "is-open");
-    void groupOverlay.offsetWidth;
-    groupOverlay.classList.add("is-open");
-    document.body.classList.add("group-overlay-open");
-  }
-
-  if (openGroupTablesBtn) {
+  if (openGroupTablesBtn && groupModal) {
     openGroupTablesBtn.addEventListener("click", function () {
-      openGroupOverlay();
+      if (knockoutModal) knockoutModal.close();
+      groupModal.open();
     });
   }
 
@@ -146,23 +163,65 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  if (groupCloseBtn) {
-    groupCloseBtn.addEventListener("click", closeGroupOverlay);
+  // Knockout rounds: clickable cards open an expand overlay (group-table pattern).
+  const knockoutOverlay = document.getElementById("knockout-round-overlay");
+  const knockoutCards = document.querySelectorAll(
+    ".knockout-round-card[data-knockout-target]"
+  );
+  const knockoutTabs = document.querySelectorAll("[data-knockout-tab]");
+
+  function setActiveKnockoutPanel(panelId) {
+    document.querySelectorAll("[data-knockout-panel]").forEach(function (panel) {
+      panel.hidden = panel.id !== panelId;
+    });
+    knockoutTabs.forEach(function (tab) {
+      const active = tab.getAttribute("data-knockout-tab") === panelId;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
   }
 
-  if (groupOverlay) {
-    groupOverlay.addEventListener("click", function (event) {
-      if (event.target === groupOverlay) {
-        closeGroupOverlay();
-      }
-    });
+  let pendingKnockoutPanel = null;
+  const knockoutModal = wireFadeOverlay(knockoutOverlay, {
+    bodyClass: "knockout-overlay-open",
+    closeBtn: document.getElementById("knockout-overlay-close"),
+    onOpen: function () {
+      const firstPanel = document.querySelector("[data-knockout-panel]");
+      const target =
+        pendingKnockoutPanel || (firstPanel && firstPanel.id);
+      if (target) setActiveKnockoutPanel(target);
+      pendingKnockoutPanel = null;
+    },
+  });
 
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && groupOverlay.classList.contains("is-open")) {
-        closeGroupOverlay();
-      }
+  knockoutCards.forEach(function (card) {
+    card.addEventListener("click", function () {
+      pendingKnockoutPanel = card.getAttribute("data-knockout-target");
+      if (groupModal) groupModal.close();
+      if (knockoutModal) knockoutModal.open();
     });
-  }
+  });
+
+  knockoutTabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      setActiveKnockoutPanel(tab.getAttribute("data-knockout-tab"));
+    });
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (
+      knockoutOverlay &&
+      knockoutOverlay.classList.contains("is-open") &&
+      knockoutModal
+    ) {
+      knockoutModal.close();
+      return;
+    }
+    if (groupOverlay && groupOverlay.classList.contains("is-open") && groupModal) {
+      groupModal.close();
+    }
+  });
 
   // Finished results stay visible briefly, then fade out (default 5 minutes).
   document.querySelectorAll(".match-row[data-finished-at]").forEach(function (row) {

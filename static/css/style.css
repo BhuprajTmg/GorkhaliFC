@@ -1100,7 +1100,7 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   font-style: italic;
 }
 
-/* ---------- Knockout bracket (replaces inline group grid) ---------- */
+/* ---------- Knockout round cards (clickable like group tables) ---------- */
 
 .knockout-stage {
   margin-bottom: 48px;
@@ -1113,44 +1113,8 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   align-items: stretch;
 }
 
-.knockout-bracket-panel {
-  position: relative;
+.knockout-rounds-block {
   min-width: 0;
-  padding: 22px 22px 26px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, var(--color-border));
-  border-radius: 4px;
-  background:
-    radial-gradient(
-      120% 80% at 0% 0%,
-      color-mix(in srgb, var(--color-primary) 18%, transparent),
-      transparent 55%
-    ),
-    radial-gradient(
-      90% 70% at 100% 100%,
-      color-mix(in srgb, var(--color-accent) 14%, transparent),
-      transparent 50%
-    ),
-    linear-gradient(
-      165deg,
-      color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-alt)) 0%,
-      var(--color-bg-alt) 48%,
-      color-mix(in srgb, var(--color-bg-alt-2) 70%, var(--color-bg-alt)) 100%
-    );
-  box-shadow: 0 14px 36px color-mix(in srgb, #000 22%, transparent);
-  overflow: hidden;
-}
-
-.knockout-bracket-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    var(--color-primary),
-    var(--color-accent),
-    var(--color-accent-2)
-  );
 }
 
 .knockout-bracket-intro {
@@ -1172,108 +1136,212 @@ html[data-theme="light"] .theme-toggle .icon-moon {
 
 .knockout-bracket-hint {
   margin: 0;
-  max-width: 36ch;
+  max-width: 40ch;
   font-size: 0.84rem;
   line-height: 1.45;
   color: var(--color-ink-soft);
 }
 
-.knockout-bracket {
-  --bracket-gap: 18px;
+.knockout-round-grid {
   display: grid;
-  grid-template-columns: repeat(var(--bracket-cols, 3), minmax(0, 1fr));
-  gap: var(--bracket-gap);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
   align-items: stretch;
 }
 
-.knockout-bracket[data-columns="2"] {
-  --bracket-cols: 2;
+.knockout-round-grid[data-columns="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.knockout-bracket[data-columns="3"] {
-  --bracket-cols: 3;
+.knockout-round-grid[data-columns="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.knockout-bracket[data-columns="4"] {
-  --bracket-cols: 4;
+.knockout-round-card {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  transform: scale(0.96);
+  opacity: 0.92;
+  filter: saturate(0.92);
+  animation: knockoutCardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--round-i, 0) * 90ms);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.35s ease,
+    opacity 0.35s ease;
 }
 
-.bracket-column {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  animation: bracketColumnIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--bracket-i, 0) * 90ms);
-}
-
-@keyframes bracketColumnIn {
+@keyframes knockoutCardIn {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(18px) scale(0.94);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 0.92;
+    transform: translateY(0) scale(0.96);
   }
 }
 
-.bracket-column-label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 0 14px;
-  font-family: var(--font-heading);
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--color-ink);
-  letter-spacing: 0.2px;
+.knockout-round-card:hover,
+.knockout-round-card:focus-visible {
+  transform: scale(1);
+  opacity: 1;
+  filter: saturate(1.08);
+  outline: none;
+  z-index: 2;
 }
 
-.bracket-column-label span {
-  font-family: var(--font-body);
+.knockout-round-card:hover .knockout-round-card-inner,
+.knockout-round-card:focus-visible .knockout-round-card-inner {
+  border-color: color-mix(in srgb, var(--color-accent) 60%, var(--color-border));
+  box-shadow: 0 18px 40px color-mix(in srgb, #000 30%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-alt)) 0%,
+      var(--color-bg-alt) 48%,
+      var(--color-bg-alt) 100%
+    );
+}
+
+.knockout-round-card:focus-visible .knockout-round-card-inner {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-accent) 40%, transparent),
+    0 18px 40px color-mix(in srgb, #000 30%, transparent);
+}
+
+.knockout-round-card:hover .knockout-round-card-cta,
+.knockout-round-card:focus-visible .knockout-round-card-cta {
+  color: var(--color-accent);
+  letter-spacing: 1.6px;
+}
+
+.knockout-round-card:hover .bracket-tie--compact,
+.knockout-round-card:focus-visible .bracket-tie--compact {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+.knockout-round-card-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+  border-radius: 4px;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-accent) 7%, var(--color-bg-alt)) 0%,
+      var(--color-bg-alt) 45%,
+      var(--color-bg-alt) 100%
+    );
+  box-shadow: 0 8px 22px color-mix(in srgb, #000 18%, transparent);
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    background 0.35s ease;
+}
+
+.knockout-round-card--final .knockout-round-card-inner {
+  border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-accent) 16%, var(--color-bg-alt)) 0%,
+      var(--color-bg-alt) 50%,
+      var(--color-bg-alt) 100%
+    );
+}
+
+.knockout-round-card-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 14px 12px;
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-primary) 26%, #0b1f3a) 0%,
+      #0b1f3a 52%,
+      color-mix(in srgb, var(--color-accent) 20%, #0b1f3a) 100%
+    );
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, var(--color-primary), var(--color-accent), var(--color-accent-2)) 1;
+}
+
+.knockout-round-card-short {
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-accent) 85%, var(--color-ink-soft));
+  color: color-mix(in srgb, var(--color-accent) 88%, #fff);
 }
 
-.bracket-column-matches {
+.knockout-round-card-name {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #f7f1e4;
+  letter-spacing: 0.3px;
+}
+
+.knockout-round-card-meta {
+  font-size: 0.7rem;
+  color: color-mix(in srgb, #f7f1e4 68%, transparent);
+}
+
+.knockout-round-card-ties {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
-  gap: 14px;
+  gap: 8px;
+  padding: 12px;
   flex: 1;
-  position: relative;
 }
 
-.bracket-column:not(.bracket-column--final) .bracket-column-matches::after {
-  content: "";
-  position: absolute;
-  top: 12%;
-  bottom: 12%;
-  right: -10px;
-  width: 1px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in srgb, var(--color-accent) 45%, transparent),
-    transparent
-  );
-  pointer-events: none;
+.knockout-round-card-third {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
-.bracket-match {
-  position: relative;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
-  border-radius: 4px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-bg) 55%, var(--color-bg-alt)) 0%,
-      var(--color-bg-alt) 100%
-    );
-  box-shadow: 0 8px 20px color-mix(in srgb, #000 16%, transparent);
+.knockout-round-card-third-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.knockout-round-card-cta {
+  display: block;
+  padding: 10px 14px 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  border-top: 1px solid var(--color-border);
+  transition: color 0.3s ease, letter-spacing 0.3s ease;
+}
+
+/* Compact / expanded tie chips */
+.bracket-tie--compact {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, var(--color-border));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-bg) 45%, var(--color-bg-alt));
   overflow: hidden;
   transition:
     transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
@@ -1281,48 +1349,36 @@ html[data-theme="light"] .theme-toggle .icon-moon {
     box-shadow 0.3s ease;
 }
 
-.bracket-match:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
-  box-shadow: 0 12px 28px color-mix(in srgb, #000 24%, transparent);
+.bracket-tie--compact.bracket-tie--live {
+  border-color: color-mix(in srgb, var(--color-primary) 65%, var(--color-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 28%, transparent);
 }
 
-.bracket-match--live {
-  border-color: color-mix(in srgb, var(--color-primary) 70%, var(--color-border));
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent),
-    0 10px 28px color-mix(in srgb, var(--color-primary) 22%, transparent);
-}
-
-.bracket-match--done {
-  border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
-}
-
-.bracket-match--tbd {
+.bracket-tie--compact.bracket-tie--tbd {
   opacity: 0.88;
 }
 
-.bracket-match-teams {
-  display: flex;
-  flex-direction: column;
-}
-
-.bracket-team {
+.bracket-tie-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.2rem;
+  grid-template-columns: minmax(0, 1fr) 1.8rem;
   gap: 8px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--color-border);
 }
 
-.bracket-team:last-child {
+.bracket-tie-row:last-child {
   border-bottom: none;
 }
 
-.bracket-team-name {
+.bracket-tie-row--winner .bracket-tie-club,
+.bracket-tie-row--winner .bracket-tie-goals {
+  color: var(--color-accent);
+}
+
+.bracket-tie-club {
   min-width: 0;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-ink);
   white-space: nowrap;
@@ -1330,30 +1386,117 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   text-overflow: ellipsis;
 }
 
-.bracket-team-score {
+.bracket-tie-goals {
   font-family: var(--font-heading);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 800;
   text-align: right;
   color: var(--color-ink-soft);
 }
 
-.bracket-team--winner .bracket-team-name {
-  color: var(--color-accent);
+.bracket-tie--expanded {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
+  border-radius: 4px;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-alt)) 0%,
+      var(--color-bg-alt) 100%
+    );
+  box-shadow: 0 10px 26px color-mix(in srgb, #000 18%, transparent);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.bracket-team--winner .bracket-team-score {
-  color: var(--color-accent);
+.bracket-tie--expanded:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  box-shadow: 0 14px 32px color-mix(in srgb, #000 24%, transparent);
 }
 
-.bracket-match-meta {
+.bracket-tie--expanded.bracket-tie--live {
+  border-color: color-mix(in srgb, var(--color-primary) 70%, var(--color-border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent),
+    0 12px 30px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.bracket-tie-banner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px 10px;
+  padding: 12px 14px;
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-primary) 22%, #0b1f3a) 0%,
+      #0b1f3a 55%,
+      color-mix(in srgb, var(--color-accent) 16%, #0b1f3a) 100%
+    );
+}
+
+.bracket-tie-round {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f7f1e4;
+}
+
+.bracket-tie-scoreboard {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 18px 16px;
+}
+
+.bracket-tie-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bracket-tie-side:last-child {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.bracket-tie-side .bracket-tie-club {
+  font-size: 1.02rem;
+  font-weight: 700;
+  white-space: normal;
+}
+
+.bracket-tie-side .bracket-tie-goals {
+  font-size: 1.55rem;
+  color: var(--color-ink);
+}
+
+.bracket-tie-side--winner .bracket-tie-club,
+.bracket-tie-side--winner .bracket-tie-goals {
+  color: var(--color-accent);
+}
+
+.bracket-tie-vs {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.bracket-tie-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 14px 12px;
   border-top: 1px solid var(--color-border);
-  background: color-mix(in srgb, #000 12%, transparent);
+  font-size: 0.74rem;
+  color: var(--color-ink-soft);
+  background: color-mix(in srgb, #000 10%, transparent);
 }
 
 .bracket-pill {
@@ -1378,33 +1521,11 @@ html[data-theme="light"] .theme-toggle .icon-moon {
 
 .bracket-pill--done {
   border-color: color-mix(in srgb, var(--color-ink-soft) 40%, transparent);
-  color: var(--color-ink-soft);
-}
-
-.bracket-meta-text {
-  font-size: 0.7rem;
-  color: var(--color-ink-soft);
-}
-
-.bracket-column--final .bracket-match {
-  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
-  background:
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-alt)) 0%,
-      var(--color-bg-alt) 55%,
-      var(--color-bg-alt) 100%
-    );
-}
-
-.bracket-third {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px dashed color-mix(in srgb, var(--color-accent) 35%, transparent);
+  color: color-mix(in srgb, #f7f1e4 78%, transparent);
 }
 
 .bracket-third-label {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 1.6px;
@@ -1417,6 +1538,169 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   text-align: center;
   border: 1px dashed color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
   color: var(--color-ink-soft);
+}
+
+/* Knockout expand overlay */
+.knockout-round-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1210;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: color-mix(in srgb, #050a14 72%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.knockout-round-overlay.is-open {
+  display: flex;
+  opacity: 1;
+}
+
+.knockout-round-overlay.is-closing {
+  opacity: 0;
+}
+
+.knockout-round-overlay-panel {
+  position: relative;
+  width: min(920px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  border-radius: 4px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-alt)) 0%,
+      var(--color-bg-alt) 42%,
+      var(--color-bg-alt) 100%
+    );
+  box-shadow: 0 24px 64px color-mix(in srgb, #000 45%, transparent);
+  transform: translateY(14px) scale(0.96);
+  opacity: 0;
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.35s ease;
+}
+
+.knockout-round-overlay.is-open .knockout-round-overlay-panel {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.knockout-round-overlay.is-closing .knockout-round-overlay-panel {
+  transform: translateY(10px) scale(0.97);
+  opacity: 0;
+}
+
+.knockout-drawer-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 22px 48px 14px 22px;
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-primary) 22%, #0b1f3a) 0%,
+      #0b1f3a 48%,
+      color-mix(in srgb, var(--color-accent) 18%, #0b1f3a) 100%
+    );
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.knockout-drawer-header .group-standings-name {
+  margin: 0;
+}
+
+.knockout-drawer-legend {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #f7f1e4 75%, transparent);
+}
+
+.knockout-drawer-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 18px 0;
+}
+
+.knockout-drawer-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-bg) 40%, var(--color-bg-alt));
+  color: var(--color-ink-soft);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.knockout-drawer-tab:hover,
+.knockout-drawer-tab:focus-visible {
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  color: var(--color-ink);
+  outline: none;
+}
+
+.knockout-drawer-tab.is-active {
+  border-color: color-mix(in srgb, var(--color-accent) 65%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg-alt));
+  color: var(--color-accent);
+}
+
+.knockout-expanded-panel[hidden] {
+  display: none !important;
+}
+
+.knockout-expanded-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 18px;
+  padding: 16px 22px 12px;
+}
+
+.knockout-expanded-count {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.knockout-expanded-ties {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 18px 22px;
+}
+
+.knockout-expanded-third {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
 /* Side rail — open group tables without crowding the bracket */
@@ -1499,7 +1783,6 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   font-size: 1.45rem;
   font-weight: 800;
   line-height: 1.05;
-  writing-mode: horizontal-tb;
 }
 
 .group-tables-trigger-meta {
@@ -1587,16 +1870,25 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   padding: 16px 22px 12px;
 }
 
-html[data-theme="light"] .knockout-bracket-panel {
-  box-shadow: 0 14px 32px color-mix(in srgb, #201b12 10%, transparent);
+html[data-theme="light"] .knockout-round-card-inner {
+  box-shadow: 0 8px 20px color-mix(in srgb, #201b12 8%, transparent);
 }
 
-html[data-theme="light"] .bracket-match {
-  box-shadow: 0 8px 18px color-mix(in srgb, #201b12 8%, transparent);
+html[data-theme="light"] .knockout-round-card:hover .knockout-round-card-inner,
+html[data-theme="light"] .knockout-round-card:focus-visible .knockout-round-card-inner {
+  box-shadow: 0 18px 36px color-mix(in srgb, #201b12 14%, transparent);
 }
 
-html[data-theme="light"] .bracket-match-meta {
-  background: color-mix(in srgb, #201b12 4%, transparent);
+html[data-theme="light"] .knockout-round-card-banner,
+html[data-theme="light"] .knockout-drawer-header,
+html[data-theme="light"] .bracket-tie-banner {
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-primary) 85%, #1a120c) 0%,
+      #1a2438 52%,
+      color-mix(in srgb, var(--color-accent) 55%, #1a2438) 100%
+    );
 }
 
 html[data-theme="light"] .group-tables-trigger {
@@ -1611,6 +1903,24 @@ html[data-theme="light"] .group-drawer-header {
       #1a2438 52%,
       color-mix(in srgb, var(--color-accent) 55%, #1a2438) 100%
     );
+}
+
+html[data-theme="light"] .knockout-round-overlay {
+  background: color-mix(in srgb, #1a140c 55%, transparent);
+}
+
+html[data-theme="light"] .bracket-tie-footer {
+  background: color-mix(in srgb, #201b12 4%, transparent);
+}
+
+body.knockout-overlay-open {
+  overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+  .knockout-round-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 980px) {
@@ -1642,27 +1952,34 @@ html[data-theme="light"] .group-drawer-header {
     padding-top: 0;
   }
 
-  .knockout-bracket {
+  .knockout-expanded-ties {
     grid-template-columns: 1fr;
-    gap: 28px;
-  }
-
-  .bracket-column:not(.bracket-column--final) .bracket-column-matches::after {
-    display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .knockout-bracket-panel {
-    padding: 18px 14px 20px;
+  .knockout-round-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .knockout-round-card {
+    transform: scale(1);
+    opacity: 1;
   }
 
   .knockout-bracket-heading {
     font-size: 1.3rem;
   }
 
-  .bracket-team-name {
-    font-size: 0.8rem;
+  .bracket-tie-scoreboard {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .bracket-tie-side,
+  .bracket-tie-side:last-child {
+    align-items: center;
+    text-align: center;
   }
 }
 
