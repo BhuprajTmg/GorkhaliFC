@@ -502,64 +502,79 @@ def advance_knockout_winners(
     return result
 
 
+def ensure_knockout_progress():
+    """Make sure the public site always has the current knockout round scheduled.
+
+    - Group stage finished but no QF/R16 fixtures yet → create them.
+    - A knockout round fully finished → schedule the next round.
+    Safe to call on every homepage load.
+    """
+    global _PROGRESS_LOCK
+    if _PROGRESS_LOCK:
+        return KnockoutResult()
+
+    result = KnockoutResult()
+    if not all_group_stages_complete():
+        return result
+
+    _PROGRESS_LOCK = True
+    try:
+        settings = _hub_settings()
+        planned_stage, pairings = planned_first_round_pairings()
+        if planned_stage and pairings:
+            knockout_qs = Match.objects.exclude(stage=Match.Stage.GROUP)
+            opening = Match.objects.filter(stage=planned_stage)
+            real_opening = [
+                m
+                for m in opening
+                if not _is_placeholder(m.home_team) and not _is_placeholder(m.away_team)
+            ]
+            # Stale bracket from a smaller group count (SF when we need QF).
+            if knockout_qs.exists() and not opening.exists():
+                reset_knockout_fixtures()
+                real_opening = []
+
+            if len(real_opening) < len(pairings):
+                generated = generate_knockout_bracket(
+                    start_date=settings["start_date"],
+                    include_third_place=settings["include_third_place"],
+                    venue=settings["venue"],
+                    require_group_stage_complete=True,
+                )
+                result.created.extend(generated.created)
+                result.advanced.extend(generated.advanced)
+                result.errors.extend(generated.errors)
+                hub = settings["hub"]
+                if hub and (generated.created or generated.advanced):
+                    hub.generated_at = timezone.now()
+                    hub.save(update_fields=["generated_at"])
+
+        advanced = advance_knockout_winners(
+            include_third_place=settings["include_third_place"],
+            venue=settings["venue"],
+        )
+        result.created.extend(advanced.created)
+        result.advanced.extend(advanced.advanced)
+        for error in advanced.errors:
+            if error.startswith("Nothing to advance"):
+                continue
+            result.errors.append(error)
+    finally:
+        _PROGRESS_LOCK = False
+
+    return result
+
+
 def maybe_progress_knockout(match, previous_status=None):
     """Auto-schedule QF after groups, then SF/Final after each round ends.
 
     Called from Match.save when a fixture becomes Finished.
     """
-    global _PROGRESS_LOCK
-    if _PROGRESS_LOCK:
-        return None
     if match.status != Match.Status.FINISHED:
         return None
     if previous_status == Match.Status.FINISHED:
         return None
-
-    result = KnockoutResult()
-    _PROGRESS_LOCK = True
-    try:
-        if match.stage == Match.Stage.GROUP and all_group_stages_complete():
-            settings = _hub_settings()
-            planned_stage, _pairings = planned_first_round_pairings()
-            if planned_stage:
-                knockout_qs = Match.objects.exclude(stage=Match.Stage.GROUP)
-                has_opening = Match.objects.filter(stage=planned_stage).exists()
-                # If an older/smaller bracket was built (e.g. SF while we now
-                # need QF), clear it so the correct first round can schedule.
-                if knockout_qs.exists() and not has_opening:
-                    reset_knockout_fixtures()
-
-            generated = generate_knockout_bracket(
-                start_date=settings["start_date"],
-                include_third_place=settings["include_third_place"],
-                venue=settings["venue"],
-                require_group_stage_complete=True,
-            )
-            result.created.extend(generated.created)
-            result.advanced.extend(generated.advanced)
-            result.errors.extend(generated.errors)
-            hub = settings["hub"]
-            if hub and (generated.created or generated.advanced):
-                hub.generated_at = timezone.now()
-                hub.save(update_fields=["generated_at"])
-
-        if match.stage != Match.Stage.GROUP:
-            settings = _hub_settings()
-            advanced = advance_knockout_winners(
-                include_third_place=settings["include_third_place"],
-                venue=settings["venue"],
-            )
-            result.created.extend(advanced.created)
-            result.advanced.extend(advanced.advanced)
-            # Ignore the benign "nothing to advance" notice during auto-progress.
-            for error in advanced.errors:
-                if error.startswith("Nothing to advance"):
-                    continue
-                result.errors.append(error)
-    finally:
-        _PROGRESS_LOCK = False
-
-    return result
+    return ensure_knockout_progress()
 
 
 def _is_placeholder(name):

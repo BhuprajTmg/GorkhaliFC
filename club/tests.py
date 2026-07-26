@@ -11,6 +11,7 @@ from club.group_fixtures import (
 from club.knockout import (
     advance_knockout_winners,
     all_group_stages_complete,
+    ensure_knockout_progress,
     generate_knockout_bracket,
     group_stage_progress,
     planned_first_round_pairings,
@@ -147,10 +148,58 @@ class MatchScheduleTests(TestCase):
         schedule = build_match_schedule()
         self.assertEqual(schedule["next_match"], qf[0])
         self.assertEqual(schedule["upcoming_matches"], qf[1:5])
+        self.assertTrue(
+            all(m.stage == Match.Stage.QF for m in schedule["upcoming_matches"])
+        )
         self.assertNotIn(
             "Winner QF1",
             [m.home_team for m in [schedule["next_match"], *schedule["upcoming_matches"]]],
         )
+
+    def test_ensure_creates_qf_when_groups_done_but_bracket_missing(self):
+        ClubInfo.objects.create(name="Gurkhali FC", founded_year=2023)
+        hub = KnockoutBracket.get_solo()
+        hub.start_date = datetime.date(2026, 9, 10)
+        hub.save(update_fields=["start_date"])
+
+        groups = []
+        for letter in "ABCD":
+            group = CompetitionGroup.objects.create(
+                name=f"Group {letter}", season="Cup", is_active=True
+            )
+            for index in range(4):
+                GroupTeam.objects.create(
+                    group=group,
+                    name=f"{letter}{index + 1}",
+                    played=1,
+                    won=1 if index == 0 else 0,
+                    lost=0 if index == 0 else 1,
+                )
+            groups.append(group)
+
+        # Finish groups without leaving auto-created knockout fixtures.
+        for letter, group in zip("ABCD", groups):
+            Match.objects.create(
+                home_team=f"{letter}1",
+                away_team=f"{letter}4",
+                group=group,
+                stage=Match.Stage.GROUP,
+                match_date=datetime.date(2026, 8, 1),
+                status=Match.Status.FINISHED,
+                home_score=2,
+                away_score=0,
+            )
+        reset_knockout_fixtures()
+        self.assertEqual(Match.objects.exclude(stage=Match.Stage.GROUP).count(), 0)
+
+        ensure_knockout_progress()
+        qf = Match.objects.filter(stage=Match.Stage.QF, status=Match.Status.SCHEDULED)
+        self.assertEqual(qf.count(), 4)
+
+        schedule = build_match_schedule()
+        self.assertIsNotNone(schedule["next_match"])
+        self.assertEqual(schedule["next_match"].stage, Match.Stage.QF)
+        self.assertEqual(len(schedule["upcoming_matches"]), 3)
 
 
 class KnockoutBracketDisplayTests(TestCase):

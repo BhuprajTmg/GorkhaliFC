@@ -300,30 +300,28 @@ def _is_bracket_placeholder_team(name):
 def _scheduled_queue(group_stage_complete):
     """Next/Upcoming fixture queue for the public schedule."""
     if group_stage_complete:
-        from django.db.models import Case, IntegerField, When
-
-        stage_order = Case(
-            When(stage=Match.Stage.R16, then=0),
-            When(stage=Match.Stage.QF, then=1),
-            When(stage=Match.Stage.SF, then=2),
-            When(stage=Match.Stage.THIRD, then=3),
-            When(stage=Match.Stage.FINAL, then=4),
-            default=9,
-            output_field=IntegerField(),
-        )
-        knockout = list(
-            Match.objects.filter(status=Match.Status.SCHEDULED)
-            .exclude(stage=Match.Stage.GROUP)
-            .order_by(stage_order, "match_date", "match_time", "bracket_order", "pk")
-        )
-        # Only real ties — skip SF/Final shells still waiting on earlier winners.
-        real = [
-            match
-            for match in knockout
-            if not _is_bracket_placeholder_team(match.home_team)
-            and not _is_bracket_placeholder_team(match.away_team)
-        ]
-        return real[:UPCOMING_LIMIT]
+        # Show only the current knockout round (QF before SF before Final).
+        for stage in (
+            Match.Stage.R16,
+            Match.Stage.QF,
+            Match.Stage.SF,
+            Match.Stage.THIRD,
+            Match.Stage.FINAL,
+        ):
+            knockout = list(
+                Match.objects.filter(status=Match.Status.SCHEDULED, stage=stage).order_by(
+                    "match_date", "match_time", "bracket_order", "pk"
+                )
+            )
+            real = [
+                match
+                for match in knockout
+                if not _is_bracket_placeholder_team(match.home_team)
+                and not _is_bracket_placeholder_team(match.away_team)
+            ]
+            if real:
+                return real[:UPCOMING_LIMIT]
+        return []
 
     return list(
         Match.objects.filter(
@@ -335,9 +333,12 @@ def _scheduled_queue(group_stage_complete):
 
 def build_match_schedule(now=None):
     """Return live, next, upcoming, knockout, and recently-finished lists."""
-    from .knockout import all_group_stages_complete
+    from .knockout import all_group_stages_complete, ensure_knockout_progress
 
     now = now or timezone.now()
+    # If groups are done but QF were never created (finished before auto-schedule
+    # shipped, or Reset without Generate), create/advance them on page load.
+    ensure_knockout_progress()
     group_stage_complete = all_group_stages_complete()
 
     live_qs = Match.objects.filter(status=Match.Status.LIVE)
