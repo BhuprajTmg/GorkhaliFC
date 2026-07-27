@@ -17,15 +17,30 @@ pip install -r requirements.txt
 echo "==> Migrating database..."
 python manage.py migrate --noinput
 
+echo "==> Repairing legacy DB artifacts (duplicates / stale indexes)..."
+python manage.py db_doctor || true
+
 echo "==> Collecting static files..."
 python manage.py collectstatic --noinput
 
 echo "==> Django check..."
 python manage.py check
 
+echo "==> Reloading the web app..."
+# PythonAnywhere reloads the site when its WSGI file is touched.
+RELOADED=0
+for wsgi in /var/www/*_wsgi.py; do
+  if [ -f "$wsgi" ]; then
+    touch "$wsgi"
+    echo "    touched $wsgi"
+    RELOADED=1
+  fi
+done
+if [ "$RELOADED" -eq 0 ]; then
+  echo "    !! No /var/www/*_wsgi.py found — click Reload on the Web tab instead."
+fi
+
 echo
-echo "DONE. Now open the PythonAnywhere Web tab and click the green Reload button."
-echo "Then hard-refresh https://bhupraj.pythonanywhere.com/ (Ctrl+Shift+R)."
-echo
-echo "Quick verify — this should print action=\"/\" (not #register):"
-rg -n 'action=' templates/club/includes/_register.html || grep -n 'action=' templates/club/includes/_register.html
+echo "DONE."
+echo "Verify the live site is serving new code (should NOT contain '#register'):"
+echo "  curl -s https://\$USER.pythonanywhere.com/ | grep -o 'action=\"[^\"]*\"' | head"

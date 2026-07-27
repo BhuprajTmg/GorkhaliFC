@@ -18,8 +18,9 @@ Other “free” hosts (Render, Railway free tiers) often **sleep** or wipe the 
 
 ## Fix a Server Error (500) after updating
 
-Your live site must be running the latest `main` from GitHub. If the register
-form still has `action="#register"`, the update did **not** apply.
+**Most common cause: the web app was not reloaded.** Updating files on disk
+does not restart the running site — the old code stays in memory until you
+reload.
 
 In a PythonAnywhere **Bash** console, run:
 
@@ -27,6 +28,9 @@ In a PythonAnywhere **Bash** console, run:
 cd ~/GorkhaliFC
 bash scripts/pythonanywhere_update.sh
 ```
+
+That script pulls `main`, migrates, repairs legacy DB rows/indexes, collects
+static files, **and reloads the web app** (by touching `/var/www/*_wsgi.py`).
 
 Or manually:
 
@@ -38,19 +42,19 @@ git checkout main
 git reset --hard origin/main
 pip install -r requirements.txt
 python manage.py migrate --noinput
+python manage.py db_doctor
 python manage.py collectstatic --noinput
-python manage.py check
+touch /var/www/*_wsgi.py     # <-- reload (or click Reload on the Web tab)
 ```
 
-Then open the **Web** tab → green **Reload** button → hard-refresh the site.
-
-Confirm the update worked:
+Verify the **live** site is serving new code (not just the files on disk):
 
 ```bash
-grep action= ~/GorkhaliFC/templates/club/includes/_register.html
+curl -s https://YOUR_USERNAME.pythonanywhere.com/ | grep -o 'action="[^"]*"' | head
 ```
 
-You must see `action="/"` or `action="{% url 'club:home' %}"` — **not** `action="#register"`.
+You must NOT see `action="#register"`. If you do, the reload didn't happen —
+open the **Web** tab and click the green **Reload** button.
 
 If it still shows 500, open the error log:
 
