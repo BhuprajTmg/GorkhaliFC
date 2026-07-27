@@ -79,6 +79,7 @@ html[data-theme="light"] {
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
@@ -88,6 +89,7 @@ body {
   background: var(--color-bg);
   line-height: 1.65;
   transition: background-color 0.25s ease, color 0.25s ease;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4 {
@@ -2936,16 +2938,33 @@ body.group-overlay-open {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
   gap: 48px;
+  align-items: start;
+  min-width: 0;
+}
+
+.contact-info {
+  min-width: 0;
 }
 
 .contact-item {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 24px;
+  align-items: flex-start;
+  min-width: 0;
 }
 
 .contact-icon {
   font-size: 1.3rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+  width: 1.6em;
+  text-align: center;
+}
+
+.contact-item-body {
+  min-width: 0;
+  flex: 1;
 }
 
 .contact-item strong {
@@ -2960,20 +2979,34 @@ body.group-overlay-open {
 .contact-item p {
   margin: 0;
   color: var(--color-ink);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.contact-email {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.contact-email:hover {
+  color: var(--color-accent);
 }
 
 .contact-social {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin: 12px 0 16px;
+  margin: 12px 0 0;
 }
 
 .social-btn {
   padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
-  background: var(--color-bg-alt);
+  background: var(--color-bg);
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -2998,10 +3031,13 @@ body.group-overlay-open {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  background: var(--color-bg-alt);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 28px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .contact-form label {
@@ -3013,18 +3049,24 @@ body.group-overlay-open {
   letter-spacing: 1.5px;
   color: var(--color-ink-soft);
   font-weight: 600;
+  min-width: 0;
 }
 
 .contact-form input,
 .contact-form textarea,
 .contact-form select {
-  background: var(--color-bg);
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: var(--color-bg-alt);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px 14px;
   color: var(--color-ink);
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  /* 16px prevents iOS Safari from zooming the page on focus */
+  font-size: 1rem;
   text-transform: none;
   letter-spacing: normal;
   font-weight: 400;
@@ -3329,14 +3371,29 @@ body.group-overlay-open {
   flex-wrap: wrap;
 }
 
+.footer-brand,
+.footer-contact,
+.footer-social {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .footer-brand .brand-name {
   color: var(--color-accent);
+}
+
+.footer-contact p,
+.footer-contact a {
+  margin: 0 0 0.4em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .footer-social {
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .footer-social a {
@@ -3351,9 +3408,17 @@ body.group-overlay-open {
   opacity: 0.75;
   margin-top: 32px;
   margin-bottom: 0;
+  padding: 0 16px;
 }
 
 /* ---------- Responsive ---------- */
+
+@media (max-width: 980px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
 
 @media (max-width: 860px) {
   .nav-burger {
@@ -3376,6 +3441,8 @@ body.group-overlay-open {
     padding: 12px 24px 20px;
     gap: 14px;
     display: none;
+    max-height: calc(100vh - 76px);
+    overflow-y: auto;
   }
 
   .nav-toggle:checked ~ .main-nav {
@@ -3383,7 +3450,6 @@ body.group-overlay-open {
   }
 
   .about-grid,
-  .contact-grid,
   .register-grid {
     grid-template-columns: 1fr;
   }
@@ -3400,5 +3466,83 @@ body.group-overlay-open {
 
   .match-row {
     flex-wrap: wrap;
+  }
+
+  .footer-inner {
+    flex-direction: column;
+    gap: 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .section {
+    padding: 56px 0;
+  }
+
+  .accent-underline {
+    margin-bottom: 28px;
+  }
+
+  .contact-grid {
+    gap: 24px;
+  }
+
+  .contact-item {
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .contact-form {
+    padding: 18px 14px;
+    gap: 14px;
+    border-radius: 12px;
+  }
+
+  .contact-form textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+
+  .contact-form .btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .contact-social {
+    gap: 8px;
+  }
+
+  .social-btn {
+    flex: 1 1 calc(50% - 8px);
+    text-align: center;
+    min-width: 0;
+  }
+
+  .form-modal-box {
+    padding: 22px 16px 20px;
+    max-height: 92vh;
+  }
+
+  .register-modal-lead {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .container {
+    padding: 0 12px;
+  }
+
+  .contact-form {
+    padding: 16px 12px;
+  }
+
+  .social-btn {
+    flex: 1 1 100%;
   }
 }

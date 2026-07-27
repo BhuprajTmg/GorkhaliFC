@@ -7,22 +7,26 @@
         <div class="contact-grid">
             <div class="contact-info">
                 <div class="contact-item">
-                    <span class="contact-icon">📍</span>
-                    <div>
+                    <span class="contact-icon" aria-hidden="true">📍</span>
+                    <div class="contact-item-body">
                         <strong>Location</strong>
                         <p>{{ club.location|default:"Darwin, Northern Territory, Australia" }}</p>
                     </div>
                 </div>
                 <div class="contact-item">
-                    <span class="contact-icon">📧</span>
-                    <div>
+                    <span class="contact-icon" aria-hidden="true">📧</span>
+                    <div class="contact-item-body">
                         <strong>Email</strong>
-                        <p>{{ club.email|default:"bhupraj875@gmail.com" }}</p>
+                        <p>
+                            <a class="contact-email" href="mailto:{{ club.email|default:'bhupraj875@gmail.com' }}">
+                                {{ club.email|default:"bhupraj875@gmail.com" }}
+                            </a>
+                        </p>
                     </div>
                 </div>
                 <div class="contact-item">
-                    <span class="contact-icon">⚽</span>
-                    <div>
+                    <span class="contact-icon" aria-hidden="true">⚽</span>
+                    <div class="contact-item-body">
                         <strong>Founded</strong>
                         <p>{{ club.founded_year|default:"2023" }} &middot; Representing the Nepali-Australian community</p>
                     </div>
@@ -32,7 +36,6 @@
                     {% if club.instagram_url %}<a class="social-btn" href="{{ club.instagram_url }}" target="_blank" rel="noopener">Instagram</a>{% else %}<span class="social-btn social-btn--disabled">Instagram</span>{% endif %}
                     {% if club.youtube_url %}<a class="social-btn" href="{{ club.youtube_url }}" target="_blank" rel="noopener">YouTube</a>{% else %}<span class="social-btn social-btn--disabled">YouTube</span>{% endif %}
                 </div>
-                <p class="contact-hint">Update social links and contact details anytime from the Django admin.</p>
             </div>
 
             <form class="contact-form" method="post" action="#contact">
