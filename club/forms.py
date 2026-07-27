@@ -141,6 +141,15 @@ class TeamRegistrationForm(forms.ModelForm):
         name = (self.cleaned_data.get("team_name") or "").strip()
         if len(name) < 2:
             raise ValidationError("Enter your full team name.")
+        # Team name is the unique id — one registration per team (case-insensitive).
+        qs = TeamRegistration.objects.filter(team_name__iexact=name)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError(
+                "This team name is already registered. Each team can only "
+                "register once — choose a different name if this isn't your team."
+            )
         return name
 
     def save(self, commit=True):

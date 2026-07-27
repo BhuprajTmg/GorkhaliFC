@@ -876,6 +876,31 @@ class TeamRegistrationFormTests(TestCase):
         self.assertContains(second, "already submitted a team registration")
         self.assertContains(second, "Registration Submitted")
 
+    def test_team_name_must_be_unique(self):
+        from django.core import mail
+
+        TeamRegistration.objects.create(
+            tournament_name="Dashain Cup 2026",
+            team_name="Charles Darwin University",
+            manager_name="Manager",
+            phone="0400000000",
+            email="existing@gmail.com",
+            agreed_to_rules=True,
+            home_city="Darwin",
+            experience="N/A",
+            notes="N/A",
+        )
+        mail.outbox.clear()
+        # Fresh client = new session, but same team name must still be rejected.
+        other = self.client_class()
+        data = self._base_registration_data(email="new.manager@gmail.com")
+        data["registration-team_name"] = "charles darwin university"  # case variant
+        response = other.post("/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertContains(response, "already registered")
+
     def test_sixteenth_approval_emails_schedules(self):
         from django.core import mail
 

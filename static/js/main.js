@@ -127,14 +127,25 @@ document.addEventListener("DOMContentLoaded", function () {
   // Prevent double-submit (extra emails / duplicate rows) from rapid clicks.
   function guardSubmitOnce(form, button) {
     if (!form || !button) return;
-    form.addEventListener("submit", function () {
-      if (button.disabled) return;
-      button.disabled = true;
-      button.setAttribute("aria-busy", "true");
-      const original = button.textContent;
-      button.dataset.originalLabel = original;
-      button.textContent = "Submitting…";
-    });
+    let locked = false;
+    form.addEventListener(
+      "submit",
+      function (event) {
+        if (locked || button.disabled) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return false;
+        }
+        locked = true;
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.textContent = "Submitting…";
+        // Freeze the whole form so Enter / double-tap can't re-fire.
+        form.style.pointerEvents = "none";
+        form.setAttribute("aria-busy", "true");
+      },
+      true
+    );
   }
   guardSubmitOnce(
     document.querySelector(".register-form"),

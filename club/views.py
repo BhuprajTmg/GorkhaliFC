@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -60,36 +61,46 @@ def home(request):
                 request.POST, instance=TeamRegistration(), prefix="roster"
             )
             if registration_form.is_valid() and roster_formset.is_valid():
-                registration = registration_form.save()
-                roster_formset.instance = registration
-                roster_formset.save()
-                registration.refresh_player_count()
-                send_registration_notification(registration, club)
-                confirmation_queued = send_registration_received_confirmation(
-                    registration, club
-                )
-                request.session[REGISTRATION_SESSION_KEY] = {
-                    "team_name": registration.team_name,
-                    "email": registration.email,
-                    "id": registration.pk,
-                }
-                request.session.modified = True
-                if email_delivery_enabled() and confirmation_queued:
-                    messages.success(
-                        request,
-                        f"Thanks, {registration.team_name}! Your registration for "
-                        f"{registration.tournament_name} is being reviewed — check "
-                        f"your Gmail for confirmation.",
+                try:
+                    with transaction.atomic():
+                        registration = registration_form.save()
+                        roster_formset.instance = registration
+                        roster_formset.save()
+                        registration.refresh_player_count()
+                except IntegrityError:
+                    # Race: two rapid submits with the same team name.
+                    registration_form.add_error(
+                        "team_name",
+                        "This team name is already registered. Each team can "
+                        "only register once.",
                     )
                 else:
-                    messages.success(
-                        request,
-                        f"Thanks, {registration.team_name}! Your registration for "
-                        f"{registration.tournament_name} was received and is "
-                        f"being reviewed.",
+                    send_registration_notification(registration, club)
+                    confirmation_queued = send_registration_received_confirmation(
+                        registration, club
                     )
-                # No #hash — avoids page scroll jump under the success popup.
-                return redirect(home_url)
+                    request.session[REGISTRATION_SESSION_KEY] = {
+                        "team_name": registration.team_name,
+                        "email": registration.email,
+                        "id": registration.pk,
+                    }
+                    request.session.modified = True
+                    if email_delivery_enabled() and confirmation_queued:
+                        messages.success(
+                            request,
+                            f"Thanks, {registration.team_name}! Your registration for "
+                            f"{registration.tournament_name} is being reviewed — check "
+                            f"your Gmail for confirmation.",
+                        )
+                    else:
+                        messages.success(
+                            request,
+                            f"Thanks, {registration.team_name}! Your registration for "
+                            f"{registration.tournament_name} was received and is "
+                            f"being reviewed.",
+                        )
+                    # No #hash — avoids page scroll jump under the success popup.
+                    return redirect(home_url)
             # Invalid: re-render with the register modal open and field errors.
             # Skip the site-wide message popup so the page doesn't jump.
         else:

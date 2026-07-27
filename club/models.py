@@ -503,7 +503,11 @@ class TeamRegistration(models.Model):
         default=DEFAULT_TOURNAMENT_NAME,
         help_text='Fixed for this season — "Dashain Cup 2026".',
     )
-    team_name = models.CharField(max_length=120)
+    team_name = models.CharField(
+        max_length=120,
+        unique=True,
+        help_text="Unique team name — each team may register only once.",
+    )
     division = models.CharField(
         max_length=10,
         choices=Division.choices,
@@ -535,6 +539,12 @@ class TeamRegistration(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        constraints = [
+            models.UniqueConstraint(
+                models.functions.Lower("team_name"),
+                name="uniq_teamregistration_team_name_ci",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.team_name} — {self.tournament_name}"
