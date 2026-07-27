@@ -34,6 +34,23 @@ document.addEventListener("DOMContentLoaded", function () {
   // message popup, and the "Register Your Team" floating form. Both use
   // the same overlay pattern (click backdrop, close button, or Escape to
   // dismiss); the form overlay additionally has a button that opens it.
+  function syncBodyModalLock() {
+    const anyOpen = document.querySelector(
+      ".form-modal-overlay.is-open, .modal-overlay.is-open, #site-modal.is-open"
+    );
+    // site-modal may be visible without is-open class on first paint
+    const siteModal = document.getElementById("site-modal");
+    const siteVisible =
+      siteModal &&
+      !siteModal.classList.contains("is-closing") &&
+      siteModal.offsetParent !== null;
+    if (anyOpen || siteVisible) {
+      document.body.classList.add("modal-open");
+    } else {
+      document.body.classList.remove("modal-open");
+    }
+  }
+
   function wireOverlay(overlay, closeButtonIds) {
     if (!overlay) return null;
 
@@ -42,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
       window.setTimeout(function () {
         overlay.classList.remove("is-open", "is-closing");
         overlay.style.display = "none";
+        syncBodyModalLock();
       }, 150);
     };
 
@@ -49,6 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
       overlay.classList.remove("is-closing");
       overlay.style.display = "flex";
       overlay.classList.add("is-open");
+      document.body.classList.add("modal-open");
     };
 
     closeButtonIds.forEach(function (id) {
@@ -68,11 +87,30 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
+    // If server rendered the overlay already open (validation errors),
+    // lock page scroll without jumping the viewport.
+    if (overlay.classList.contains("is-open")) {
+      overlay.style.display = "flex";
+      document.body.classList.add("modal-open");
+    }
+
     return { open, close };
   }
 
   // Success/error popup (rendered server-side from Django messages).
-  wireOverlay(document.getElementById("site-modal"), ["modal-close", "modal-ok"]);
+  const siteModal = document.getElementById("site-modal");
+  const siteModalApi = wireOverlay(siteModal, ["modal-close", "modal-ok"]);
+  if (siteModal && siteModalApi) {
+    // Messages modal is shown on load — keep scroll locked until dismissed.
+    siteModal.classList.add("is-open");
+    siteModal.style.display = "flex";
+    document.body.classList.add("modal-open");
+    // Stay at current/top position; do not honor leftover #hash scrolls.
+    if (window.location.hash) {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+    window.scrollTo(0, 0);
+  }
 
   // Floating "Register Your Team" form. It may already be open on load
   // (server adds the "is-open" class if the last submission had errors to
@@ -85,6 +123,27 @@ document.addEventListener("DOMContentLoaded", function () {
   if (openRegisterBtn && registerModal) {
     openRegisterBtn.addEventListener("click", registerModal.open);
   }
+
+  // Prevent double-submit (extra emails / duplicate rows) from rapid clicks.
+  function guardSubmitOnce(form, button) {
+    if (!form || !button) return;
+    form.addEventListener("submit", function () {
+      if (button.disabled) return;
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      const original = button.textContent;
+      button.dataset.originalLabel = original;
+      button.textContent = "Submitting…";
+    });
+  }
+  guardSubmitOnce(
+    document.querySelector(".register-form"),
+    document.getElementById("register-submit-btn")
+  );
+  guardSubmitOnce(
+    document.getElementById("contact-form"),
+    document.getElementById("contact-submit-btn")
+  );
 
   // Shared fade-open / fade-close helper for schedule overlays.
   function wireFadeOverlay(overlay, options) {

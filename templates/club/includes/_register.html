@@ -8,10 +8,21 @@
             {{ default_division_label }}. All fields are required, including
             all {{ roster_size }} player names.
         </p>
-        <button type="button" class="btn btn-primary" id="open-register-form">Register Your Team</button>
+        {% if registration_already_submitted %}
+            <p class="register-submitted-note">
+                You’ve already submitted a registration in this browser session.
+                Only one team registration is allowed per session.
+            </p>
+            <button type="button" class="btn btn-primary" disabled aria-disabled="true">
+                Registration Submitted
+            </button>
+        {% else %}
+            <button type="button" class="btn btn-primary" id="open-register-form">Register Your Team</button>
+        {% endif %}
     </div>
 </section>
 
+{% if not registration_already_submitted %}
 <div class="form-modal-overlay {% if registration_form.errors or roster_formset.errors or roster_formset.non_form_errors %}is-open{% endif %}" id="register-form-modal">
     <div class="form-modal-box register-modal">
         <button type="button" class="modal-close" id="register-form-close" aria-label="Close">&times;</button>
@@ -20,7 +31,7 @@
             Complete every field below. Use a Gmail address so we can send your confirmation.
         </p>
 
-        <form class="contact-form register-form" method="post" action="#register" novalidate>
+        <form class="contact-form register-form" method="post" action="{% url 'club:home' %}" novalidate>
             {% csrf_token %}
             <input type="hidden" name="form_name" value="registration">
 
@@ -118,7 +129,8 @@
                 <p class="form-error">{{ registration_form.agreed_to_rules.errors.0 }}</p>
             {% endif %}
 
-            <button type="submit" class="btn btn-primary">Submit Registration</button>
+            <button type="submit" class="btn btn-primary" id="register-submit-btn">Submit Registration</button>
         </form>
     </div>
 </div>
+{% endif %}

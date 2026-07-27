@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from .emails import (
     email_delivery_enabled,
@@ -20,6 +21,9 @@ from .models import (
 )
 from .schedule import build_match_schedule
 
+# One successful tournament registration per browser session.
+REGISTRATION_SESSION_KEY = "dashain_registration_submitted"
+
 
 def home(request):
     """Single-page site: hero + about + players + schedule + register +
@@ -34,11 +38,23 @@ def home(request):
     contact_form = ContactForm(prefix="contact")
     registration_form = TeamRegistrationForm(prefix="registration")
     roster_formset = RegisteredPlayerFormSet(instance=TeamRegistration(), prefix="roster")
+    registration_already_submitted = bool(
+        request.session.get(REGISTRATION_SESSION_KEY)
+    )
+    home_url = reverse("club:home")
 
     if request.method == "POST":
         form_name = request.POST.get("form_name")
 
         if form_name == "registration":
+            if request.session.get(REGISTRATION_SESSION_KEY):
+                messages.info(
+                    request,
+                    "You have already submitted a team registration in this "
+                    "browser session. Only one registration is allowed per session.",
+                )
+                return redirect(home_url)
+
             registration_form = TeamRegistrationForm(request.POST, prefix="registration")
             roster_formset = RegisteredPlayerFormSet(
                 request.POST, instance=TeamRegistration(), prefix="roster"
@@ -52,6 +68,12 @@ def home(request):
                 confirmation_queued = send_registration_received_confirmation(
                     registration, club
                 )
+                request.session[REGISTRATION_SESSION_KEY] = {
+                    "team_name": registration.team_name,
+                    "email": registration.email,
+                    "id": registration.pk,
+                }
+                request.session.modified = True
                 if email_delivery_enabled() and confirmation_queued:
                     messages.success(
                         request,
@@ -66,12 +88,10 @@ def home(request):
                         f"{registration.tournament_name} was received and is "
                         f"being reviewed.",
                     )
-                return redirect(f"{request.path}#register")
-            messages.error(
-                request,
-                "Your registration couldn't be submitted — please check the "
-                "highlighted fields below and try again.",
-            )
+                # No #hash — avoids page scroll jump under the success popup.
+                return redirect(home_url)
+            # Invalid: re-render with the register modal open and field errors.
+            # Skip the site-wide message popup so the page doesn't jump.
         else:
             contact_form = ContactForm(request.POST, prefix="contact")
             if contact_form.is_valid():
@@ -80,12 +100,12 @@ def home(request):
                 messages.success(
                     request, "Thanks for reaching out! We'll get back to you soon."
                 )
-                return redirect(f"{request.path}#contact")
-            messages.error(
-                request,
-                "Your message couldn't be sent — please check the highlighted "
-                "fields below and try again.",
-            )
+                return redirect(home_url)
+            # Invalid contact: show inline field errors only (no scroll popup).
+
+    registration_already_submitted = bool(
+        request.session.get(REGISTRATION_SESSION_KEY)
+    )
 
     active_players = Player.objects.filter(is_active=True)
     grouped_players = []
@@ -128,6 +148,7 @@ def home(request):
         "form": contact_form,
         "registration_form": registration_form,
         "roster_formset": roster_formset,
+        "registration_already_submitted": registration_already_submitted,
         "default_tournament_name": DEFAULT_TOURNAMENT_NAME,
         "default_division_label": TeamRegistration.Division.OPEN_7A.label,
         "roster_size": ROSTER_SIZE,

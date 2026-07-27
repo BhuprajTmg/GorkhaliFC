@@ -2762,6 +2762,24 @@ body.group-overlay-open {
   margin: 0 0 28px;
 }
 
+.register-submitted-note {
+  margin: 0 0 18px;
+  max-width: 36ch;
+  color: var(--color-ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.register-cta .btn[disabled] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+body.modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
 /* Floating semi-transparent form modal opened by the "Register Your
    Team" button — same overlay pattern as the success/error popup, but
    holds the actual registration form and stays open until closed (or

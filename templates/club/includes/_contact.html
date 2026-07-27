@@ -38,7 +38,7 @@
                 </div>
             </div>
 
-            <form class="contact-form" method="post" action="#contact">
+            <form class="contact-form" method="post" action="{% url 'club:home' %}" id="contact-form">
                 {% csrf_token %}
                 <input type="hidden" name="form_name" value="contact">
                 <label>
@@ -56,7 +56,7 @@
                     {{ form.message }}
                     {{ form.message.errors }}
                 </label>
-                <button type="submit" class="btn btn-primary">Send Message</button>
+                <button type="submit" class="btn btn-primary" id="contact-submit-btn">Send Message</button>
             </form>
         </div>
     </div>

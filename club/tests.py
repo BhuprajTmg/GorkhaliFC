@@ -859,6 +859,23 @@ class TeamRegistrationFormTests(TestCase):
             confirm.body,
         )
 
+    def test_one_registration_per_session(self):
+        from django.core import mail
+
+        first = self.client.post("/", self._base_registration_data(), follow=True)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 1)
+        first_emails = len(mail.outbox)
+
+        data = self._base_registration_data(email="another.team@gmail.com")
+        data["registration-team_name"] = "Second Attempt FC"
+        second = self.client.post("/", data, follow=True)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), first_emails)
+        self.assertContains(second, "already submitted a team registration")
+        self.assertContains(second, "Registration Submitted")
+
     def test_sixteenth_approval_emails_schedules(self):
         from django.core import mail
 
