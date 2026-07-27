@@ -539,12 +539,6 @@ class TeamRegistration(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
-        constraints = [
-            models.UniqueConstraint(
-                models.functions.Lower("team_name"),
-                name="uniq_teamregistration_team_name_ci",
-            ),
-        ]
 
     def __str__(self):
         return f"{self.team_name} — {self.tournament_name}"

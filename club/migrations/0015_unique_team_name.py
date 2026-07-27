@@ -34,11 +34,4 @@ class Migration(migrations.Migration):
                 unique=True,
             ),
         ),
-        migrations.AddConstraint(
-            model_name="teamregistration",
-            constraint=models.UniqueConstraint(
-                django.db.models.functions.Lower("team_name"),
-                name="uniq_teamregistration_team_name_ci",
-            ),
-        ),
     ]

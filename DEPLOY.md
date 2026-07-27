@@ -16,7 +16,31 @@ Other “free” hosts (Render, Railway free tiers) often **sleep** or wipe the 
 
 ---
 
-## 1. Prepare (on your computer)
+## Fix a Server Error (500) after updating
+
+In a PythonAnywhere **Bash** console:
+
+```bash
+cd ~/GorkhaliFC
+workon gurkhali
+git fetch origin
+git reset --hard origin/main
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py check
+```
+
+Then open the **Web** tab → green **Reload** button.
+
+If it still shows 500, open the error log:
+
+`https://www.pythonanywhere.com/user/YOUR_USERNAME/files/var/log/YOUR_USERNAME.pythonanywhere.com.error.log`
+
+Copy the last traceback and use it to debug.
+
+---
+
 
 1. Push this repo to GitHub (already done if you use `BhuprajTmg/GorkhaliFC`).
 2. Create a long random secret (you’ll paste it on PythonAnywhere):
