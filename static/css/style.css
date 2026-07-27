@@ -3509,6 +3509,7 @@ body.group-overlay-open {
 
   .contact-form .btn {
     width: 100%;
+    align-self: stretch;
     justify-content: center;
     text-align: center;
   }
