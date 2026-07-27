@@ -859,22 +859,41 @@ class TeamRegistrationFormTests(TestCase):
             confirm.body,
         )
 
-    def test_one_registration_per_session(self):
+    def test_same_session_can_register_a_different_team(self):
         from django.core import mail
 
         first = self.client.post("/", self._base_registration_data(), follow=True)
         self.assertEqual(first.status_code, 200)
         self.assertEqual(TeamRegistration.objects.count(), 1)
-        first_emails = len(mail.outbox)
 
-        data = self._base_registration_data(email="another.team@gmail.com")
-        data["registration-team_name"] = "Second Attempt FC"
+        mail.outbox.clear()
+        data = self._base_registration_data(email="second.team@gmail.com")
+        data["registration-team_name"] = "Second Team FC"
         second = self.client.post("/", data, follow=True)
         self.assertEqual(second.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 2)
+        self.assertTrue(
+            any("Registration received" in m.subject for m in mail.outbox),
+            msg="Second team should also get a confirmation email",
+        )
+
+    def test_same_team_name_cannot_register_twice_in_one_session(self):
+        from django.core import mail
+
+        self.client.post("/", self._base_registration_data(), follow=True)
         self.assertEqual(TeamRegistration.objects.count(), 1)
-        self.assertEqual(len(mail.outbox), first_emails)
-        self.assertContains(second, "already submitted a team registration")
-        self.assertContains(second, "Registration Submitted")
+
+        mail.outbox.clear()
+        # Same team name again (triple-click / resubmit) must be rejected.
+        again = self.client.post("/", self._base_registration_data())
+        self.assertEqual(again.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
+        content = again.content.decode()
+        self.assertTrue(
+            "already registered" in content or "already exists" in content,
+            msg="Expected duplicate-team error",
+        )
 
     def test_team_name_must_be_unique(self):
         from django.core import mail

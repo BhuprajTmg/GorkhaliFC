@@ -28,8 +28,9 @@ from .models import (
 )
 from .schedule import build_match_schedule
 
-# One successful tournament registration per browser session.
-REGISTRATION_SESSION_KEY = "dashain_registration_submitted"
+# Team names already registered from this browser (informational only —
+# the real rule is the unique team_name in the database).
+REGISTRATION_SESSION_KEY = "dashain_registered_team_names"
 
 
 def home(request):
@@ -45,23 +46,12 @@ def home(request):
     contact_form = ContactForm(prefix="contact")
     registration_form = TeamRegistrationForm(prefix="registration")
     roster_formset = RegisteredPlayerFormSet(instance=TeamRegistration(), prefix="roster")
-    registration_already_submitted = bool(
-        request.session.get(REGISTRATION_SESSION_KEY)
-    )
     home_url = reverse("club:home")
 
     if request.method == "POST":
         form_name = request.POST.get("form_name")
 
         if form_name == "registration":
-            if request.session.get(REGISTRATION_SESSION_KEY):
-                messages.info(
-                    request,
-                    "You have already submitted a team registration in this "
-                    "browser session. Only one registration is allowed per session.",
-                )
-                return redirect(home_url)
-
             registration_form = TeamRegistrationForm(request.POST, prefix="registration")
             roster_formset = RegisteredPlayerFormSet(
                 request.POST, instance=TeamRegistration(), prefix="roster"
@@ -91,11 +81,9 @@ def home(request):
                     confirmation_queued = send_registration_received_confirmation(
                         registration, club
                     )
-                    request.session[REGISTRATION_SESSION_KEY] = {
-                        "team_name": registration.team_name,
-                        "email": registration.email,
-                        "id": registration.pk,
-                    }
+                    submitted = list(request.session.get(REGISTRATION_SESSION_KEY) or [])
+                    submitted.append(registration.team_name)
+                    request.session[REGISTRATION_SESSION_KEY] = submitted[-10:]
                     request.session.modified = True
                     if email_delivery_enabled() and confirmation_queued:
                         messages.success(
@@ -125,9 +113,7 @@ def home(request):
                 return redirect(home_url)
             # Invalid contact: show inline field errors only (no scroll popup).
 
-    registration_already_submitted = bool(
-        request.session.get(REGISTRATION_SESSION_KEY)
-    )
+    teams_registered_here = list(request.session.get(REGISTRATION_SESSION_KEY) or [])
 
     active_players = Player.objects.filter(is_active=True)
     grouped_players = []
@@ -170,7 +156,7 @@ def home(request):
         "form": contact_form,
         "registration_form": registration_form,
         "roster_formset": roster_formset,
-        "registration_already_submitted": registration_already_submitted,
+        "teams_registered_here": teams_registered_here,
         "default_tournament_name": DEFAULT_TOURNAMENT_NAME,
         "default_division_label": TeamRegistration.Division.OPEN_7A.label,
         "roster_size": ROSTER_SIZE,

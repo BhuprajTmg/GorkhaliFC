@@ -2764,10 +2764,18 @@ body.group-overlay-open {
 
 .register-submitted-note {
   margin: 0 0 18px;
-  max-width: 36ch;
+  max-width: 40ch;
   color: var(--color-ink-soft);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.register-cta-rule {
+  margin: -14px 0 22px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--color-accent);
 }
 
 .register-cta .btn[disabled] {

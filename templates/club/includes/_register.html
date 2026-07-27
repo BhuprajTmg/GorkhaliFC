@@ -8,21 +8,20 @@
             {{ default_division_label }}. All fields are required, including
             all {{ roster_size }} player names.
         </p>
-        {% if registration_already_submitted %}
+        <p class="register-cta-rule">
+            One registration per team — each team name can only be used once.
+        </p>
+        {% if teams_registered_here %}
             <p class="register-submitted-note">
-                You’ve already submitted a registration in this browser session.
-                Only one team registration is allowed per session.
+                Already registered from this device:
+                <strong>{{ teams_registered_here|join:", " }}</strong>.
+                You can still register another team with a different name.
             </p>
-            <button type="button" class="btn btn-primary" disabled aria-disabled="true">
-                Registration Submitted
-            </button>
-        {% else %}
-            <button type="button" class="btn btn-primary" id="open-register-form">Register Your Team</button>
         {% endif %}
+        <button type="button" class="btn btn-primary" id="open-register-form">Register Your Team</button>
     </div>
 </section>
 
-{% if not registration_already_submitted %}
 <div class="form-modal-overlay {% if registration_form.errors or roster_formset.errors or roster_formset.non_form_errors %}is-open{% endif %}" id="register-form-modal">
     <div class="form-modal-box register-modal">
         <button type="button" class="modal-close" id="register-form-close" aria-label="Close">&times;</button>
@@ -133,4 +132,3 @@
         </form>
     </div>
 </div>
-{% endif %}
