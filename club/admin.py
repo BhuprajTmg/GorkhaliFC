@@ -606,11 +606,16 @@ class TeamRegistrationAdmin(admin.ModelAdmin):
 
         from .models import APPROVED_TEAMS_FOR_SCHEDULE
 
-        # Schedule emails are sent by club.signals; surface a clear admin note.
+        # Approval + schedule emails are sent by club.signals; admin notes only.
         if (
             obj.status == TeamRegistration.Status.APPROVED
             and previous_status != TeamRegistration.Status.APPROVED
         ):
+            self.message_user(
+                request,
+                f"Approval email with PDF sent to {obj.email}.",
+                level=messages.SUCCESS,
+            )
             approved_count = TeamRegistration.objects.filter(
                 status=TeamRegistration.Status.APPROVED
             ).count()

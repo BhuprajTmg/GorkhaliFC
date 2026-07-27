@@ -430,6 +430,41 @@ def send_registration_received_confirmation(registration, club):
     )
 
 
+def send_registration_approved_confirmation(registration, club):
+    """One email to the team when approved — PDF roster attached (no Word doc)."""
+    club_name = club.name if club else "Gurkhali FC"
+    pdf_bytes = build_registration_pdf(registration, club)
+    safe_team_name = "".join(
+        c for c in registration.team_name if c.isalnum() or c in (" ", "-", "_")
+    ).strip() or "team"
+
+    return _send(
+        subject=f"[{club_name}] Registration approved — {registration.team_name}",
+        body=(
+            f"Hi {registration.manager_name},\n\n"
+            f"Good news — {registration.team_name} has been approved for "
+            f"{registration.tournament_name}.\n\n"
+            f"Division: {registration.get_division_display()}\n"
+            f"Players listed: {registration.player_count}\n\n"
+            "A PDF of your registration details and player roster is attached "
+            "for your records.\n\n"
+            "Once all 16 teams are approved, you will receive the match "
+            "schedules by email.\n\n"
+            f"— {club_name}"
+        ),
+        recipient=registration.email,
+        reply_to=_notification_recipient(club),
+        club=club,
+        attachments=[
+            (
+                f"Registration - {safe_team_name}.pdf",
+                pdf_bytes,
+                "application/pdf",
+            ),
+        ],
+    )
+
+
 def send_schedule_ready_notifications(club):
     """Email every approved team that match schedules are ready."""
     from .models import TeamRegistration

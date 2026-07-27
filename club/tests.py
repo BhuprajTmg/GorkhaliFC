@@ -894,10 +894,65 @@ class TeamRegistrationFormTests(TestCase):
         pending.status = TeamRegistration.Status.APPROVED
         pending.save()
 
+        approval_mails = [
+            m for m in mail.outbox if "Registration approved" in m.subject
+        ]
+        self.assertEqual(len(approval_mails), 1)
+        self.assertEqual(approval_mails[0].to, ["team16@gmail.com"])
+
         schedule_mails = [
             m for m in mail.outbox if "Match schedules are ready" in m.subject
         ]
         self.assertEqual(len(schedule_mails), APPROVED_TEAMS_FOR_SCHEDULE)
+
+    def test_approval_sends_one_pdf_email_to_team(self):
+        from django.core import mail
+
+        from club.models import RegisteredPlayer
+
+        reg = TeamRegistration.objects.create(
+            tournament_name="Dashain Cup 2026",
+            team_name="Gurkhali FC Red",
+            manager_name="Bhupraj Tamang",
+            phone="0400000000",
+            email="bhupraj875@gmail.com",
+            agreed_to_rules=True,
+            status=TeamRegistration.Status.PENDING,
+            home_city="Darwin",
+            experience="N/A",
+            notes="N/A",
+        )
+        for i in range(12):
+            RegisteredPlayer.objects.create(
+                registration=reg, name=f"Player {i + 1}", jersey_number=i + 1
+            )
+        reg.refresh_player_count()
+
+        mail.outbox.clear()
+        reg.status = TeamRegistration.Status.APPROVED
+        reg.save()
+
+        approval_mails = [
+            m for m in mail.outbox if "Registration approved" in m.subject
+        ]
+        self.assertEqual(len(approval_mails), 1)
+        msg = approval_mails[0]
+        self.assertEqual(msg.to, ["bhupraj875@gmail.com"])
+        self.assertIn("has been approved", msg.body)
+        self.assertEqual(len(msg.attachments), 1)
+        filename, content, mimetype = msg.attachments[0]
+        self.assertTrue(filename.endswith(".pdf"))
+        self.assertEqual(mimetype, "application/pdf")
+        self.assertTrue(content.startswith(b"%PDF"))
+        self.assertFalse(any(name.endswith(".docx") for name, *_ in msg.attachments))
+
+        # Saving again while already Approved must not re-send.
+        mail.outbox.clear()
+        reg.manager_name = "Bhupraj Tamang"
+        reg.save()
+        self.assertFalse(
+            any("Registration approved" in m.subject for m in mail.outbox)
+        )
 
 
 class EmailSenderTests(TestCase):
