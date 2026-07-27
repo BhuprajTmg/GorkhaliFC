@@ -2,6 +2,7 @@ import re
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from .models import (
@@ -13,6 +14,11 @@ from .models import (
     RegisteredPlayer,
     ROSTER_SIZE,
     TeamRegistration,
+)
+
+DUPLICATE_TEAM_NAME_MSG = (
+    "This team name is already registered. Each team can only register once — "
+    "choose a different name if this isn't your team."
 )
 
 
@@ -146,18 +152,21 @@ class TeamRegistrationForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise ValidationError(
-                "This team name is already registered. Each team can only "
-                "register once — choose a different name if this isn't your team."
-            )
+            raise ValidationError(DUPLICATE_TEAM_NAME_MSG)
         return name
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance.tournament_name = DEFAULT_TOURNAMENT_NAME
         instance.division = TeamRegistration.Division.OPEN_7A
+        instance.team_name = (instance.team_name or "").strip()
         if commit:
-            instance.save()
+            try:
+                with transaction.atomic():
+                    instance.save()
+            except IntegrityError as exc:
+                # DB unique index (race or missed form check) — never 500 the site.
+                raise ValidationError({"team_name": DUPLICATE_TEAM_NAME_MSG}) from exc
         return instance
 
 

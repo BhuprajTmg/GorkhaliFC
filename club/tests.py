@@ -901,6 +901,49 @@ class TeamRegistrationFormTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
         self.assertContains(response, "already registered")
 
+    def test_duplicate_db_unique_does_not_500(self):
+        """Duplicate team names must return 200 with an error, never HTTP 500."""
+        from unittest.mock import patch
+
+        from django.core import mail
+
+        from club.forms import TeamRegistrationForm
+
+        TeamRegistration.objects.create(
+            tournament_name="Dashain Cup 2026",
+            team_name="Unique FC",
+            manager_name="Manager",
+            phone="0400000000",
+            email="existing2@gmail.com",
+            agreed_to_rules=True,
+            home_city="Darwin",
+            experience="N/A",
+            notes="N/A",
+        )
+        mail.outbox.clear()
+        data = self._base_registration_data(email="dup@gmail.com")
+        data["registration-team_name"] = "Unique FC"
+
+        # Bypass form unique checks to force the DB IntegrityError path.
+        with (
+            patch.object(
+                TeamRegistrationForm,
+                "clean_team_name",
+                lambda self: (self.cleaned_data.get("team_name") or "").strip(),
+            ),
+            patch.object(TeamRegistrationForm, "validate_unique", lambda self: None),
+        ):
+            response = self.client.post("/", data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(TeamRegistration.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
+        content = response.content.decode()
+        self.assertTrue(
+            "already registered" in content or "already exists" in content,
+            msg="Expected a duplicate-team error on the page",
+        )
+
     def test_sixteenth_approval_emails_schedules(self):
         from django.core import mail
 

@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -9,7 +10,12 @@ from .emails import (
     send_registration_notification,
     send_registration_received_confirmation,
 )
-from .forms import ContactForm, RegisteredPlayerFormSet, TeamRegistrationForm
+from .forms import (
+    DUPLICATE_TEAM_NAME_MSG,
+    ContactForm,
+    RegisteredPlayerFormSet,
+    TeamRegistrationForm,
+)
 from .models import (
     DEFAULT_TOURNAMENT_NAME,
     ROSTER_SIZE,
@@ -68,12 +74,18 @@ def home(request):
                         roster_formset.save()
                         registration.refresh_player_count()
                 except IntegrityError:
-                    # Race: two rapid submits with the same team name.
-                    registration_form.add_error(
-                        "team_name",
-                        "This team name is already registered. Each team can "
-                        "only register once.",
-                    )
+                    # Race / DB unique index — show form error, never HTTP 500.
+                    registration_form.add_error("team_name", DUPLICATE_TEAM_NAME_MSG)
+                except ValidationError as exc:
+                    if getattr(exc, "message_dict", None):
+                        for field, msgs in exc.message_dict.items():
+                            for msg in msgs:
+                                registration_form.add_error(field, msg)
+                    else:
+                        registration_form.add_error(
+                            "team_name",
+                            "; ".join(getattr(exc, "messages", []) or [DUPLICATE_TEAM_NAME_MSG]),
+                        )
                 else:
                     send_registration_notification(registration, club)
                     confirmation_queued = send_registration_received_confirmation(
@@ -101,8 +113,7 @@ def home(request):
                         )
                     # No #hash — avoids page scroll jump under the success popup.
                     return redirect(home_url)
-            # Invalid: re-render with the register modal open and field errors.
-            # Skip the site-wide message popup so the page doesn't jump.
+            # Invalid / duplicate: re-render with the register modal open.
         else:
             contact_form = ContactForm(request.POST, prefix="contact")
             if contact_form.is_valid():
