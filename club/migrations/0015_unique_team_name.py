@@ -1,5 +1,4 @@
 from django.db import migrations, models
-import django.db.models.functions
 
 
 def dedupe_team_names(apps, schema_editor):
