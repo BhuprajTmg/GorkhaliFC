@@ -18,26 +18,43 @@ Other “free” hosts (Render, Railway free tiers) often **sleep** or wipe the 
 
 ## Fix a Server Error (500) after updating
 
-In a PythonAnywhere **Bash** console:
+Your live site must be running the latest `main` from GitHub. If the register
+form still has `action="#register"`, the update did **not** apply.
+
+In a PythonAnywhere **Bash** console, run:
+
+```bash
+cd ~/GorkhaliFC
+bash scripts/pythonanywhere_update.sh
+```
+
+Or manually:
 
 ```bash
 cd ~/GorkhaliFC
 workon gurkhali
 git fetch origin
+git checkout main
 git reset --hard origin/main
 pip install -r requirements.txt
-python manage.py migrate
+python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 python manage.py check
 ```
 
-Then open the **Web** tab → green **Reload** button.
+Then open the **Web** tab → green **Reload** button → hard-refresh the site.
+
+Confirm the update worked:
+
+```bash
+grep action= ~/GorkhaliFC/templates/club/includes/_register.html
+```
+
+You must see `action="/"` or `action="{% url 'club:home' %}"` — **not** `action="#register"`.
 
 If it still shows 500, open the error log:
 
 `https://www.pythonanywhere.com/user/YOUR_USERNAME/files/var/log/YOUR_USERNAME.pythonanywhere.com.error.log`
-
-Copy the last traceback and use it to debug.
 
 ---
 
